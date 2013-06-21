@@ -25,6 +25,7 @@ import java.beans.VetoableChangeListener;
 import java.beans.VetoableChangeSupport;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.logging.Level;
@@ -42,7 +43,6 @@ public class Editor extends JPanel {
     public static final String PROP_MARKLOCATION = "PROP_MARKLOCATION";
     private final transient PropertyChangeSupport propertyChangeSupport = new java.beans.PropertyChangeSupport(this);
     private final transient VetoableChangeSupport vetoableChangeSupport = new java.beans.VetoableChangeSupport(this);
-
     Terminal calc;
 
     public Editor() {
@@ -138,13 +138,20 @@ public class Editor extends JPanel {
             public void mouseDragged(MouseEvent e) {
                 if (SwingUtilities.isLeftMouseButton(e)) {
                     int c = tD.viewToCell(e.getPoint());
-                    if (c < 0) {
-                        return;
+                    if (c >= 0) {
+                        int i = (c + 1) / 3;
+                        try {
+                            Editor.this.setCaretLocation(i + offset);
+                        } catch (PropertyVetoException ex) {
+                        }
                     }
-                    int i = (c + 1) / 3;
-                    try {
-                        Editor.this.setCaretLocation(i + offset);
-                    } catch (PropertyVetoException ex) {
+
+                    c = tT.viewToCell(e.getPoint());
+                    if (c >= 0) {
+                        try {
+                            Editor.this.setCaretLocation(c + offset);
+                        } catch (PropertyVetoException ex) {
+                        }
                     }
                 }
             }
@@ -162,17 +169,26 @@ public class Editor extends JPanel {
             public void mousePressed(MouseEvent e) {
                 requestFocusInWindow();
                 if (SwingUtilities.isLeftMouseButton(e)) {
-                    try {
-                        int c = tD.viewToCell(e.getPoint());
-                        if (c < 0) {
-                            return;
-                        }
+                    int c = tD.viewToCell(e.getPoint());
+                    if (c >= 0) {
                         int i = (c + 1) / 3;
-                        if (!selecting) {
-                            Editor.this.setMarkLocation(i + offset);
+                        try {
+                            if (!selecting) {
+                                Editor.this.setMarkLocation(i + offset);
+                            }
+                            Editor.this.setCaretLocation(i + offset);
+                        } catch (PropertyVetoException ex) {
                         }
-                        Editor.this.setCaretLocation(i + offset);
-                    } catch (PropertyVetoException ex) {
+                    }
+                    c = tT.viewToCell(e.getPoint());
+                    if (c >= 0) {
+                        try {
+                            if (!selecting) {
+                                Editor.this.setMarkLocation(c + offset);
+                            }
+                            Editor.this.setCaretLocation(c + offset);
+                        } catch (PropertyVetoException ex) {
+                        }
                     }
                 }
             }
@@ -206,17 +222,17 @@ public class Editor extends JPanel {
                 int oldPos = (int) evt.getOldValue();
                 int newPos = (int) evt.getNewValue();
                 if (newPos < offset) {
-                    seek((newPos-1 + ((newPos-oldPos+cols-1)/cols))/cols);
+                    seek((newPos - 1 + ((newPos - oldPos + cols - 1) / cols)) / cols);
                 } else if (newPos >= offset + (rows * cols)) {
                     skip(newPos);
                 }
 
 //                if (selecting) {
-                Editor.this.repaint(calcPolygon(Editor.this.getMarkLocation(), oldPos).getBounds());
-                Editor.this.repaint(calcPolygon(Editor.this.getMarkLocation(), newPos).getBounds());
+//                Editor.this.repaint(calcPolygon(Editor.this.getMarkLocation(), oldPos).getBounds());
+//                Editor.this.repaint(calcPolygon(Editor.this.getMarkLocation(), newPos).getBounds());
 //                } else {
-                Editor.this.repaint(getCellRect(oldPos));
-                Editor.this.repaint(getCellRect(newPos));
+//                Editor.this.repaint(getCellRect(oldPos));
+//                Editor.this.repaint(getCellRect(newPos));
 //                }
                 try {
                     buf.position(getCaretLocation() - offset);
@@ -298,7 +314,7 @@ public class Editor extends JPanel {
                     calc.position(cols[2] + (v < 0 ? -1 : 0), l + 5);
                     calc.write("" + v);
                     buf.position(pos);
-                } catch (IllegalArgumentException e) {
+                } catch (BufferUnderflowException e) {
                 }
 
                 repaint();
@@ -411,7 +427,7 @@ public class Editor extends JPanel {
             tD = new Terminal(cols * 3, rows);
             tD.xPos = m.width * 9;
             tD.yPos = m.height + leading;
-            tT = new Terminal(cols * 3, rows);
+            tT = new Terminal(cols, rows);
             tT.xPos = m.width * 9 + (m.width * cols * 3);
             tT.yPos = m.height + leading;
             int i = 0;
@@ -448,9 +464,12 @@ public class Editor extends JPanel {
 
         //<editor-fold defaultstate="collapsed" desc="Selection">
         if (getMarkLocation() >= 0) {
-            Polygon p = calcPolygon(this.getMarkLocation(), this.getCaretLocation());
+            Polygon p = calcPolygon(tD, this.getMarkLocation(), this.getCaretLocation(), 2, 1);
 
             g.setColor(Color.RED);
+            g.drawPolygon(p);
+
+            p = calcPolygon(tT, this.getMarkLocation(), this.getCaretLocation(), 1, 0);
             g.drawPolygon(p);
 
             g.setColor(Color.YELLOW);
@@ -471,54 +490,71 @@ public class Editor extends JPanel {
         return new Rectangle(p.x, p.y, m.width * 2, m.height);
     }
 
-    Polygon calcPolygon(int mi, int ci) {
-        mi -= offset;
-        ci -= offset;
+    Polygon calcPolygon(Terminal term, int markIdx, int caretIdx, int width, int spacing) {
+        caretIdx -= offset;
+        int caretCol = (caretIdx % cols);
+        int caretRow = (caretIdx / cols);
+        if (caretIdx < 0) {
+            caretIdx = 0;
+        } else if (caretIdx > (cols * rows)) {
+            caretIdx = (cols * rows) - 1;
+        }
+        Point caretPos = term.cellToView(caretIdx * (width + spacing));
+        caretPos.translate(-term.xPos, -term.yPos);
+
+        markIdx -= offset;
+        int markCol = (markIdx % cols);
+        int markRow = (markIdx / cols);
+        if (markIdx < 0) {
+            markIdx = 0;
+        } else if (markIdx > (cols * rows)) {
+            markIdx = (cols * rows) - 1;
+        }
+        Point markPos = term.cellToView(markIdx * (width + spacing));
+        markPos.translate(-term.xPos, -term.yPos);
+
+        Point rel = new Point(caretIdx - markIdx, caretRow - markRow);
+
+        if (rel.x >= 0) { // further right
+            caretPos.x += m.width * width;
+        } else {
+            markPos.x += m.width * width;
+        }
+        if (rel.y >= 0) { // further down
+            caretPos.y += m.height;
+        } else {
+            markPos.y += m.height;
+        }
+
         Polygon p = new Polygon();
-        Point mark = tD.cellToView(mi * 3);
-        Point car = tD.cellToView(ci * 3);
-        mark.translate(-tD.xPos, -tD.yPos);
-        car.translate(-tD.xPos, -tD.yPos);
-        Point rel = new Point(ci - mi, (ci / cols) - (mi / cols));
-
-        if (rel.x >= 0) {
-            car.x += m.width * 2;
-        } else {
-            mark.x += m.width * 2;
-        }
-        if (rel.y >= 0) {
-            car.y += m.height;
-        } else {
-            mark.y += m.height;
-        }
-        p.addPoint(mark.x, mark.y);
+        p.addPoint(markPos.x, markPos.y);
 
         if (rel.y > 0) {
-            p.addPoint((cols * 3 - 1) * m.width, mark.y);
-            p.addPoint((cols * 3 - 1) * m.width, car.y - m.height);
-            p.addPoint(car.x, car.y - m.height);
+            p.addPoint((cols * (width + spacing) - spacing) * m.width, markPos.y);
+            p.addPoint((cols * (width + spacing) - spacing) * m.width, caretPos.y - m.height);
+            p.addPoint(caretPos.x, caretPos.y - m.height);
         } else if (rel.y < 0) {
-            p.addPoint(0, mark.y);
-            p.addPoint(0, car.y + m.height);
-            p.addPoint(car.x, car.y + m.height);
+            p.addPoint(0, markPos.y);
+            p.addPoint(0, caretPos.y + m.height);
+            p.addPoint(caretPos.x, caretPos.y + m.height);
         } else {
-            p.addPoint(car.x, mark.y);
+            p.addPoint(caretPos.x, markPos.y);
         }
 
-        p.addPoint(car.x, car.y);
+        p.addPoint(caretPos.x, caretPos.y);
 
         if (rel.y > 0) {
-            p.addPoint(0, car.y);
-            p.addPoint(0, mark.y + m.height);
-            p.addPoint(mark.x, mark.y + m.height);
+            p.addPoint(0, caretPos.y);
+            p.addPoint(0, markPos.y + m.height);
+            p.addPoint(markPos.x, markPos.y + m.height);
         } else if (rel.y < 0) {
-            p.addPoint((cols * 3 - 1) * m.width, car.y);
-            p.addPoint((cols * 3 - 1) * m.width, mark.y - m.height);
-            p.addPoint(mark.x, mark.y - m.height);
+            p.addPoint((cols * (width + spacing) - spacing) * m.width, caretPos.y);
+            p.addPoint((cols * (width + spacing) - spacing) * m.width, markPos.y - m.height);
+            p.addPoint(markPos.x, markPos.y - m.height);
         } else {
-            p.addPoint(mark.x, car.y);
+            p.addPoint(markPos.x, caretPos.y);
         }
-        p.translate(tD.xPos, tD.yPos);
+        p.translate(term.xPos, term.yPos);
         return p;
     }
 

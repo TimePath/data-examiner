@@ -24,7 +24,6 @@ public class HexEditor extends javax.swing.JFrame {
      */
     public HexEditor() {
         initComponents();
-        open(new File("/home/timepath/test"));
     }
 
     private void open(File f) {
