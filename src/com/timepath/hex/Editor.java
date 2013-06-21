@@ -28,6 +28,8 @@ import java.io.RandomAccessFile;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
+import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JPanel;
@@ -44,6 +46,19 @@ public class Editor extends JPanel {
     private final transient PropertyChangeSupport propertyChangeSupport = new java.beans.PropertyChangeSupport(this);
     private final transient VetoableChangeSupport vetoableChangeSupport = new java.beans.VetoableChangeSupport(this);
     Terminal calc;
+
+    class Selection {
+
+        int mark, caret;
+        Color color;
+
+        Selection(int mark, int caret, Color c) {
+            this.mark = mark;
+            this.caret = caret;
+            this.color = c;
+        }
+    }
+    private ArrayList<Selection> tags = new ArrayList<Selection>();
 
     public Editor() {
         this.setBackground(Color.BLACK);
@@ -116,6 +131,9 @@ public class Editor extends JPanel {
                             break;
                         case KeyEvent.VK_PAGE_UP:
                             skip(-cols);
+                            break;
+                        case KeyEvent.VK_ENTER:
+                            tags.add(new Selection(getMarkLocation(), getCaretLocation(), Color.RED));
                             break;
                     }
                 } catch (PropertyVetoException ex) {
@@ -463,31 +481,41 @@ public class Editor extends JPanel {
         //</editor-fold>
 
         //<editor-fold defaultstate="collapsed" desc="Selection">
-        if (getMarkLocation() >= 0) {
-            Polygon p = calcPolygon(tD, this.getMarkLocation(), this.getCaretLocation(), 2, 1);
+        Selection sel;
+        for (int i = 0; i < tags.size() + 1; i++) {
+            if (i == tags.size()) {
+                sel = new Selection(this.getMarkLocation(), this.getCaretLocation(), Color.RED);
+            } else {
+                sel = tags.get(i);
+            }
+            g.setColor(sel.color);
+            if (sel.mark >= 0) {
+                Polygon p = calcPolygon(tD, sel.mark, sel.caret, 2, 1);
+                g.drawPolygon(p);
 
-            g.setColor(Color.RED);
-            g.drawPolygon(p);
-
-            p = calcPolygon(tT, this.getMarkLocation(), this.getCaretLocation(), 1, 0);
-            g.drawPolygon(p);
-
-            g.setColor(Color.YELLOW);
-            g.draw(getCellRect(getMarkLocation()));
+                p = calcPolygon(tT, sel.mark, sel.caret, 1, 0);
+                g.drawPolygon(p);
+            }
         }
+        
+        g.setColor(Color.YELLOW);
+        g.draw(getCellRect(tD, getMarkLocation(), 2, 1));
+        g.draw(getCellRect(tT, getMarkLocation(), 1, 0));
         g.setColor(Color.WHITE);
-        g.draw(getCellRect(getCaretLocation()));
+        g.draw(getCellRect(tD, getCaretLocation(), 2, 1));
+        g.draw(getCellRect(tT, getCaretLocation(), 1, 0));
         //</editor-fold>
+        
         if (calc != null) {
             calc.yPos = (m.height + leading) * (rows + 1);
             calc.print(g);
         }
     }
 
-    Rectangle getCellRect(int address) {
+    Rectangle getCellRect(Terminal term, int address, int width, int spacing) {
         address -= offset;
-        Point p = tD.cellToView(address * 3);
-        return new Rectangle(p.x, p.y, m.width * 2, m.height);
+        Point p = term.cellToView(address * (width + spacing));
+        return new Rectangle(p.x, p.y, m.width * width, m.height);
     }
 
     Polygon calcPolygon(Terminal term, int markIdx, int caretIdx, int width, int spacing) {
