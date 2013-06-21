@@ -44,7 +44,7 @@ public class Editor extends JPanel {
     private final transient VetoableChangeSupport vetoableChangeSupport = new java.beans.VetoableChangeSupport(this);
 
     Terminal calc;
-    
+
     public Editor() {
         this.setBackground(Color.BLACK);
         this.setForeground(Color.WHITE);
@@ -113,11 +113,9 @@ public class Editor extends JPanel {
                             break;
                         case KeyEvent.VK_PAGE_DOWN:
                             skip(cols);
-                            Editor.this.repaint();
                             break;
                         case KeyEvent.VK_PAGE_UP:
                             skip(-cols);
-                            Editor.this.repaint();
                             break;
                     }
                 } catch (PropertyVetoException ex) {
@@ -145,7 +143,7 @@ public class Editor extends JPanel {
                     }
                     int i = (c + 1) / 3;
                     try {
-                        Editor.this.setCaretLocation(i);
+                        Editor.this.setCaretLocation(i + offset);
                     } catch (PropertyVetoException ex) {
                     }
                 }
@@ -171,9 +169,9 @@ public class Editor extends JPanel {
                         }
                         int i = (c + 1) / 3;
                         if (!selecting) {
-                            Editor.this.setMarkLocation(i);
+                            Editor.this.setMarkLocation(i + offset);
                         }
-                        Editor.this.setCaretLocation(i);
+                        Editor.this.setCaretLocation(i + offset);
                     } catch (PropertyVetoException ex) {
                     }
                 }
@@ -207,6 +205,12 @@ public class Editor extends JPanel {
             public void propertyChange(PropertyChangeEvent evt) {
                 int oldPos = (int) evt.getOldValue();
                 int newPos = (int) evt.getNewValue();
+                if (newPos < offset) {
+                    seek((newPos-1 + ((newPos-oldPos+cols-1)/cols))/cols);
+                } else if (newPos >= offset + (rows * cols)) {
+                    skip(newPos);
+                }
+
 //                if (selecting) {
                 Editor.this.repaint(calcPolygon(Editor.this.getMarkLocation(), oldPos).getBounds());
                 Editor.this.repaint(calcPolygon(Editor.this.getMarkLocation(), newPos).getBounds());
@@ -214,84 +218,89 @@ public class Editor extends JPanel {
                 Editor.this.repaint(getCellRect(oldPos));
                 Editor.this.repaint(getCellRect(newPos));
 //                }
-                
-                buf.position(getCaretLocation());
-                int pos = buf.position();
-                long v;
-                
-                calc = new Terminal(29, 7);
-                calc.position(3, 1);
-                calc.write("8");
-                calc.position(0, 2);
-                calc.write("±  8");
-                calc.position(2, 3);
-                calc.write("16");
-                calc.position(0, 4);
-                calc.write("± 16");
-                calc.position(2, 5);
-                calc.write("32");
-                calc.position(0, 6);
-                calc.write("± 32");
-                
-                buf.order(ByteOrder.LITTLE_ENDIAN);
-                calc.position(6, 1);
-                calc.write("" + (buf.get() & 0xFF));
-                buf.position(pos);
-                
-                buf.order(ByteOrder.LITTLE_ENDIAN);
-                v = buf.get();
-                calc.position(6 + (v < 0 ? -1 : 0), 2);
-                calc.write("" + v);
-                buf.position(pos);
-                
-                
-                
-                buf.order(ByteOrder.LITTLE_ENDIAN);
-                calc.position(6, 3);
-                calc.write("" + (buf.getShort() & 0xFFFF));
-                buf.position(pos);
-                
-                buf.order(ByteOrder.BIG_ENDIAN);
-                calc.position(18, 3);
-                calc.write("" + (buf.getShort() & 0xFFFF));
-                buf.position(pos);
-                
-                buf.order(ByteOrder.LITTLE_ENDIAN);
-                v = buf.getShort();
-                calc.position(6 + (v < 0 ? -1 : 0), 4);
-                calc.write("" + v);
-                buf.position(pos);
-                
-                buf.order(ByteOrder.BIG_ENDIAN);
-                v = buf.getShort();
-                calc.position(18 + (v < 0 ? -1 : 0), 4);
-                calc.write("" + v);
-                buf.position(pos);
-                
-                
-                
-                buf.order(ByteOrder.LITTLE_ENDIAN);
-                calc.position(6, 5);
-                calc.write("" + ((long) buf.getInt() & 0xFFFFFFFFL));
-                buf.position(pos);
-                
-                buf.order(ByteOrder.BIG_ENDIAN);
-                calc.position(18, 5);
-                calc.write("" + ((long) buf.getInt() & 0xFFFFFFFFL));
-                buf.position(pos);
-                
-                buf.order(ByteOrder.LITTLE_ENDIAN);
-                v = buf.getInt();
-                calc.position(6 + (v < 0 ? -1 : 0), 6);
-                calc.write("" + v);
-                buf.position(pos);
-                
-                buf.order(ByteOrder.BIG_ENDIAN);
-                v = buf.getInt();
-                calc.position(18 + (v < 0 ? -1 : 0), 6);
-                calc.write("" + v);
-                buf.position(pos);
-                
+                try {
+                    buf.position(getCaretLocation() - offset);
+                    int pos = buf.position();
+                    long v;
+
+                    int[] cols = {0, 6, 18};
+                    int l = 0;
+
+                    calc = new Terminal(29, 7);
+                    calc.position(cols[0], l);
+                    calc.write("   8");
+                    calc.position(cols[0], l + 1);
+                    calc.write("±  8");
+                    calc.position(cols[0], l + 2);
+                    calc.write("  16");
+                    calc.position(cols[0], l + 3);
+                    calc.write("± 16");
+                    calc.position(cols[0], l + 4);
+                    calc.write("  32");
+                    calc.position(cols[0], l + 5);
+                    calc.write("± 32");
+
+                    buf.order(ByteOrder.LITTLE_ENDIAN);
+                    calc.position(cols[1], l);
+                    calc.write("" + (buf.get() & 0xFF));
+                    buf.position(pos);
+
+                    buf.order(ByteOrder.LITTLE_ENDIAN);
+                    v = buf.get();
+                    calc.position(cols[1] + (v < 0 ? -1 : 0), l + 1);
+                    calc.write("" + v);
+                    buf.position(pos);
+
+
+
+                    buf.order(ByteOrder.LITTLE_ENDIAN);
+                    calc.position(cols[1], l + 2);
+                    calc.write("" + (buf.getShort() & 0xFFFF));
+                    buf.position(pos);
+
+                    buf.order(ByteOrder.BIG_ENDIAN);
+                    calc.position(cols[2], l + 2);
+                    calc.write("" + (buf.getShort() & 0xFFFF));
+                    buf.position(pos);
+
+                    buf.order(ByteOrder.LITTLE_ENDIAN);
+                    v = buf.getShort();
+                    calc.position(cols[1] + (v < 0 ? -1 : 0), l + 3);
+                    calc.write("" + v);
+                    buf.position(pos);
+
+                    buf.order(ByteOrder.BIG_ENDIAN);
+                    v = buf.getShort();
+                    calc.position(cols[2] + (v < 0 ? -1 : 0), l + 3);
+                    calc.write("" + v);
+                    buf.position(pos);
+
+
+
+                    buf.order(ByteOrder.LITTLE_ENDIAN);
+                    calc.position(cols[1], l + 4);
+                    calc.write("" + ((long) buf.getInt() & 0xFFFFFFFFL));
+                    buf.position(pos);
+
+                    buf.order(ByteOrder.BIG_ENDIAN);
+                    calc.position(cols[2], l + 4);
+                    calc.write("" + ((long) buf.getInt() & 0xFFFFFFFFL));
+                    buf.position(pos);
+
+                    buf.order(ByteOrder.LITTLE_ENDIAN);
+                    v = buf.getInt();
+                    calc.position(cols[1] + (v < 0 ? -1 : 0), l + 5);
+                    calc.write("" + v);
+                    buf.position(pos);
+
+                    buf.order(ByteOrder.BIG_ENDIAN);
+                    v = buf.getInt();
+                    calc.position(cols[2] + (v < 0 ? -1 : 0), l + 5);
+                    calc.write("" + v);
+                    buf.position(pos);
+                } catch (IllegalArgumentException e) {
+                }
+
                 repaint();
             }
         });
@@ -391,7 +400,7 @@ public class Editor extends JPanel {
         if (rf != null) {
             try {
                 rf.seek(offset & 0xFFFFFFFF);
-                byte[] array = new byte[Math.min(cols * rows, (int) rf.length() - offset)];
+                byte[] array = new byte[Math.min(cols * (rows + 1), (int) rf.length() - offset)];
                 rf.read(array);
                 buf = ByteBuffer.wrap(array);
             } catch (IOException ex) {
@@ -451,17 +460,20 @@ public class Editor extends JPanel {
         g.draw(getCellRect(getCaretLocation()));
         //</editor-fold>
         if (calc != null) {
-            calc.yPos = m.height * (rows + 2);
+            calc.yPos = (m.height + leading) * (rows + 1);
             calc.print(g);
         }
     }
 
     Rectangle getCellRect(int address) {
+        address -= offset;
         Point p = tD.cellToView(address * 3);
         return new Rectangle(p.x, p.y, m.width * 2, m.height);
     }
 
     Polygon calcPolygon(int mi, int ci) {
+        mi -= offset;
+        ci -= offset;
         Polygon p = new Polygon();
         Point mark = tD.cellToView(mi * 3);
         Point car = tD.cellToView(ci * 3);
