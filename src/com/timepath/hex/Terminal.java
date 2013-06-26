@@ -76,7 +76,7 @@ public class Terminal extends Component {
             c[(caret.x + i) + (caret.y * w)] = chars[i];
         }
     }
-    
+
     Point cellToView(int ptr) {
         int x = ptr % w;
         int y = ptr / w;

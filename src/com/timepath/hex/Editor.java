@@ -237,8 +237,8 @@ public class Editor extends JPanel {
         this.propertyChangeSupport.addPropertyChangeListener(PROP_CARETLOCATION, new PropertyChangeListener() {
             @Override
             public void propertyChange(PropertyChangeEvent evt) {
-                int oldPos = (int) evt.getOldValue();
-                int newPos = (int) evt.getNewValue();
+                int oldPos = (Integer) evt.getOldValue();
+                int newPos = (Integer) evt.getNewValue();
                 if (newPos < offset) {
                     seek((newPos - 1 + ((newPos - oldPos + cols - 1) / cols)) / cols);
                 } else if (newPos >= offset + (rows * cols)) {
@@ -341,7 +341,7 @@ public class Editor extends JPanel {
         this.vetoableChangeSupport.addVetoableChangeListener(PROP_CARETLOCATION, new VetoableChangeListener() {
             @Override
             public void vetoableChange(PropertyChangeEvent evt) throws PropertyVetoException {
-                int v = (int) evt.getNewValue();
+                int v = (Integer) evt.getNewValue();
                 long max = eof;
                 int min = 0;
                 if (v < min || v > max) {
@@ -497,7 +497,7 @@ public class Editor extends JPanel {
                 g.drawPolygon(p);
             }
         }
-        
+
         g.setColor(Color.YELLOW);
         g.draw(getCellRect(tD, getMarkLocation(), 2, 1));
         g.draw(getCellRect(tT, getMarkLocation(), 1, 0));
@@ -505,7 +505,7 @@ public class Editor extends JPanel {
         g.draw(getCellRect(tD, getCaretLocation(), 2, 1));
         g.draw(getCellRect(tT, getCaretLocation(), 1, 0));
         //</editor-fold>
-        
+
         if (calc != null) {
             calc.yPos = (m.height + leading) * (rows + 1);
             calc.print(g);
