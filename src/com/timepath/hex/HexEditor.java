@@ -2,20 +2,17 @@ package com.timepath.hex;
 
 import com.timepath.plaf.x.filechooser.NativeFileChooser;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.MappedByteBuffer;
-import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
  *
- * @author timepath
+ * @author TimePath
  */
 public class HexEditor extends javax.swing.JFrame {
 

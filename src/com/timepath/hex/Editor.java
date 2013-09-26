@@ -29,7 +29,6 @@ import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
-import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JPanel;
@@ -37,7 +36,7 @@ import javax.swing.SwingUtilities;
 
 /**
  *
- * @author timepath
+ * @author TimePath
  */
 public class Editor extends JPanel {
 

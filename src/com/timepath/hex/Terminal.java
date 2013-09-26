@@ -12,7 +12,7 @@ import java.awt.geom.AffineTransform;
 
 /**
  *
- * @author timepath
+ * @author TimePath
  */
 public class Terminal extends Component {
 
