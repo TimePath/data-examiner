@@ -9,6 +9,7 @@ import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
+import java.util.Arrays;
 import java.util.logging.Logger;
 
 /**
@@ -28,19 +29,36 @@ public class Terminal extends Component {
 
     Point caret = new Point(0, 0);
 
+    protected Terminal() {
+
+    }
+
     public Terminal(int w, int h) {
         this.w = w;
         this.h = h;
-        this.c = new char[w * h];
-        this.bg = new Color[w * h];
-        this.fg = new Color[w * h];
+        c = new char[w * h];
+        bg = new Color[w * h];
+        fg = new Color[w * h];
+        clear();
+    }
 
-        for (int y = 0; y < h; y++) {
-            for (int x = 0; x < w; x++) {
-                bg[x + y * w] = new Color(0, 0, 0, 0);
-                fg[x + y * w] = Color.WHITE;
-            }
+    public void clear() {
+        Arrays.fill(c, (char) 0);
+        Arrays.fill(bg, Color.BLACK);
+        Arrays.fill(fg, Color.WHITE);
+    }
+
+    @Override
+    public Dimension getPreferredSize() {
+        if (m == null) {
+            return super.getPreferredSize();
         }
+        return new Dimension(w * m.width, h * m.height);
+    }
+
+    @Override
+    public Dimension getMinimumSize() {
+        return getPreferredSize();
     }
 
     @Override
@@ -75,11 +93,11 @@ public class Terminal extends Component {
         g.setColor(oldColor);
     }
 
-    void position(int x, int y) {
+    public void position(int x, int y) {
         caret.setLocation(x, y);
     }
 
-    void write(String text) {
+    public void write(String text) {
         char[] chars = text.toCharArray();
         for (int i = 0; i < chars.length; i++) {
             c[(caret.x + i) + (caret.y * w)] = chars[i];

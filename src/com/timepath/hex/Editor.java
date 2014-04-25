@@ -32,18 +32,16 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
 @SuppressWarnings("serial")
-public class Editor extends JPanel implements KeyListener, MouseMotionListener, MouseListener, MouseWheelListener {
+public class Editor extends Multiplexer implements KeyListener, MouseMotionListener, MouseListener, MouseWheelListener {
 
     public static final String PROP_CARETLOCATION = "PROP_CARETLOCATION";
     public static final String PROP_MARKLOCATION = "PROP_MARKLOCATION";
     private static final Logger LOG = Logger.getLogger(Editor.class.getName());
     private final transient PropertyChangeSupport propertyChangeSupport = new java.beans.PropertyChangeSupport(this);
     private final transient VetoableChangeSupport vetoableChangeSupport = new java.beans.VetoableChangeSupport(this);
-    Terminal calc;
 
     private List<Selection> tags = new LinkedList<Selection>();
 
@@ -55,15 +53,17 @@ public class Editor extends JPanel implements KeyListener, MouseMotionListener, 
     private long offset = 0;
     boolean selecting;
 
-    Terminal tD, tT;
+    Terminal tD = new Terminal(cols * 3, rows), tT = new Terminal(cols, rows), calc = new Terminal(28, 6), header = new Terminal(3 * cols - 1, 1), lines = new Terminal(8, rows);
 
     ByteBuffer buf;
     RandomAccessFile rf;
     int eof;
 
     public Editor() {
+        super.add(tD, tT, calc, header, lines);
+        
         this.setBackground(Color.BLACK);
-        this.setForeground(Color.WHITE);
+        
         this.addKeyListener(this);
         this.addMouseMotionListener(this);
         this.addMouseListener(this);
@@ -94,7 +94,7 @@ public class Editor extends JPanel implements KeyListener, MouseMotionListener, 
                     int[] cols = {0, 6, 18};
                     int l = 0;
 
-                    calc = new Terminal(29, 7);
+                    calc.clear();
                     calc.position(cols[0], l);
                     calc.write("   8");
                     calc.position(cols[0], l + 1);
@@ -366,12 +366,6 @@ public class Editor extends JPanel implements KeyListener, MouseMotionListener, 
     }
 
     @Override
-    public void repaint(Rectangle r) {
-        super.repaint(r.x, r.y, r.width + 1, r.height + 1);
-//        repaint();
-    }
-
-    @Override
     public void paint(Graphics graphics) {
         //<editor-fold defaultstate="collapsed" desc="Init">
         Graphics2D g = (Graphics2D) graphics;
@@ -391,7 +385,6 @@ public class Editor extends JPanel implements KeyListener, MouseMotionListener, 
         //</editor-fold>
 
         //<editor-fold defaultstate="collapsed" desc="Column numbers">
-        Terminal header = new Terminal(3 * cols - 1, 1);
         header.xPos = m.width * 9;
         for (int i = 0; i < header.w; i++) {
             header.bg[i] = Color.WHITE;
@@ -405,7 +398,6 @@ public class Editor extends JPanel implements KeyListener, MouseMotionListener, 
         //</editor-fold>
 
         //<editor-fold defaultstate="collapsed" desc="Row numbers">
-        Terminal lines = new Terminal(8, rows);
         lines.yPos = m.height + leading;
         for (int i = 0; i < rows; i++) {
             for (int x = 0; x < lines.w; x++) {
@@ -431,10 +423,8 @@ public class Editor extends JPanel implements KeyListener, MouseMotionListener, 
             }
         }
         if (buf != null) {
-            tD = new Terminal(cols * 3, rows);
             tD.xPos = m.width * 9;
             tD.yPos = m.height + leading;
-            tT = new Terminal(cols, rows);
             tT.xPos = m.width * 9 + (m.width * cols * 3);
             tT.yPos = m.height + leading;
             int i = 0;
