@@ -2,6 +2,7 @@ package com.timepath.hex;
 
 import java.awt.Color;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -19,15 +20,16 @@ public class Multiplexer extends Terminal {
     private final List<Terminal> terms = new LinkedList<Terminal>();
 
     public Multiplexer(Terminal... args) {
+        super();
         add(args);
 
-        c = new char[w * h];
+        charBuf = new char[w * h];
 
-        bg = new Color[w * h];
-        Arrays.fill(bg, Color.BLACK);
+        bgBuf = new Color[w * h];
+        Arrays.fill(bgBuf, Color.BLACK);
 
-        fg = new Color[w * h];
-        Arrays.fill(fg, Color.WHITE);
+        fgBuf = new Color[w * h];
+        Arrays.fill(fgBuf, Color.WHITE);
     }
 
     public void add(Terminal... args) {
@@ -40,10 +42,11 @@ public class Multiplexer extends Terminal {
 
     @Override
     public void paint(Graphics graphics) {
-        graphics.setColor(this.getBackground());
-        graphics.fillRect(0, 0, w, h);
+        Graphics2D g = (Graphics2D) graphics;
+        g.setColor(this.getBackground());
+        g.fillRect(0, 0, w * m.width, h * m.height);
         for (Terminal t : terms) {
-            t.paint(graphics);
+            t.paint(g);
         }
     }
 

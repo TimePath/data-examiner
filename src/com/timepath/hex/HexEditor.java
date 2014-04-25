@@ -29,6 +29,7 @@ public class HexEditor extends javax.swing.JFrame {
         }
         this.jTabbedPane1.add(f.getName(), t);
         t.requestFocusInWindow();
+        this.pack();
     }
 
     /**

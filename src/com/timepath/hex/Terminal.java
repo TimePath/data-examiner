@@ -1,21 +1,21 @@
 package com.timepath.hex;
 
+import static com.timepath.hex.Terminal.FONT_SIZE;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.RenderingHints;
+import java.awt.Toolkit;
 import java.awt.geom.AffineTransform;
 import java.util.Arrays;
 import java.util.logging.Logger;
 
-/**
- *
- * @author TimePath
- */
 @SuppressWarnings("serial")
 public class Terminal extends Component {
 
@@ -23,29 +23,42 @@ public class Terminal extends Component {
 
     int xPos, yPos;
     int w, h;
-    Color bg[], fg[];
-    char c[];
+    Color[] bgBuf, fgBuf;
+    char[] charBuf;
     Dimension m;
 
     Point caret = new Point(0, 0);
 
-    protected Terminal() {
+    public static final int FONT_SIZE = 12;
 
+    int leading = 0;
+
+    Font f = new Font(Font.MONOSPACED, Font.PLAIN, (int) Math.round(FONT_SIZE * Toolkit.getDefaultToolkit().getScreenResolution() / 72.0)); // Java2D = 72 DPI
+    private FontMetrics fm;
+
+    protected Terminal() {
+        super();
+        fm = this.getFontMetrics(f);
+        int ascent = fm.getMaxAscent();
+        int descent = fm.getMaxDescent();
+        int leading = 2;
+        m = new Dimension(fm.getMaxAdvance(), ascent + descent + leading);
     }
 
     public Terminal(int w, int h) {
+        this();
         this.w = w;
         this.h = h;
-        c = new char[w * h];
-        bg = new Color[w * h];
-        fg = new Color[w * h];
+        charBuf = new char[w * h];
+        bgBuf = new Color[w * h];
+        fgBuf = new Color[w * h];
         clear();
     }
 
     public void clear() {
-        Arrays.fill(c, (char) 0);
-        Arrays.fill(bg, Color.BLACK);
-        Arrays.fill(fg, Color.WHITE);
+        Arrays.fill(charBuf, (char) 0);
+        Arrays.fill(bgBuf, Color.BLACK);
+        Arrays.fill(fgBuf, Color.WHITE);
     }
 
     @Override
@@ -64,31 +77,30 @@ public class Terminal extends Component {
     @Override
     public void paint(Graphics graphics) {
         Graphics2D g = (Graphics2D) graphics;
+
         Color oldColor = g.getColor();
         AffineTransform oldAt = g.getTransform();
         AffineTransform newAt = new AffineTransform();
-        newAt.translate(xPos, yPos);
+        newAt.translate(xPos * m.width, yPos * m.height);
         g.transform(newAt);
 
-        FontMetrics fm = g.getFontMetrics();
-        int ascent = fm.getMaxAscent();
-        int descent = fm.getMaxDescent();
-        int leading = 2;
-        m = new Dimension(fm.getMaxAdvance(), ascent + descent + leading);
+        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_GASP);
+        g.setFont(f);
 
         char character;
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
                 Rectangle r = new Rectangle(x * m.width, y * m.height, m.width, m.height);
-                g.setColor(bg[x + y * w]);
+                g.setColor(bgBuf[x + y * w]);
                 g.fillRect(r.x, r.y, r.width, r.height);
-                g.setColor(fg[x + y * w]);
-                if ((character = c[x + y * w]) == 0) {
+                g.setColor(fgBuf[x + y * w]);
+                if ((character = charBuf[x + y * w]) == 0) {
                     continue;
                 }
-                g.drawString(String.valueOf(character), r.x, r.y + ascent);
+                g.drawString(String.valueOf(character), r.x, r.y + fm.getAscent());
             }
         }
+
         g.setTransform(oldAt);
         g.setColor(oldColor);
     }
@@ -100,7 +112,7 @@ public class Terminal extends Component {
     public void write(String text) {
         char[] chars = text.toCharArray();
         for (int i = 0; i < chars.length; i++) {
-            c[(caret.x + i) + (caret.y * w)] = chars[i];
+            charBuf[(caret.x + i) + (caret.y * w)] = chars[i];
         }
     }
 
@@ -108,12 +120,12 @@ public class Terminal extends Component {
         long x = ptr % w;
         long y = ptr / w;
         Point p = new Point((int) (x * m.width), (int) (y * m.height));
-        p.translate(xPos, yPos);
+        p.translate(xPos * m.width, yPos * m.height);
         return p;
     }
 
     int viewToCell(Point p) {
-        p.translate(-xPos, -yPos);
+        p.translate(-xPos * m.width, -yPos * m.height);
         if (p.x < 0 || p.x >= w * m.width) {
             return -1;
         }
