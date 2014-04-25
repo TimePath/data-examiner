@@ -477,12 +477,12 @@ public class Editor extends JPanel implements KeyListener, MouseMotionListener, 
             } else {
                 sel = tags.get(i);
             }
-            g.setColor(sel.color);
-            if (sel.mark >= 0) {
-                Polygon p = calcPolygon(tD, sel.mark, sel.caret, 2, 1);
+            g.setColor(sel.getColor());
+            if (sel.getMark() >= 0) {
+                Polygon p = calcPolygon(tD, sel.getMark(), sel.getCaret(), 2, 1);
                 g.drawPolygon(p);
 
-                p = calcPolygon(tT, sel.mark, sel.caret, 1, 0);
+                p = calcPolygon(tT, sel.getMark(), sel.getCaret(), 1, 0);
                 g.drawPolygon(p);
             }
         }
