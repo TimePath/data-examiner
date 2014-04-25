@@ -48,10 +48,10 @@ public class Editor extends JPanel {
 
     class Selection {
 
-        int mark, caret;
+        long mark, caret;
         Color color;
 
-        Selection(int mark, int caret, Color c) {
+        Selection(long mark, long caret, Color c) {
             this.mark = mark;
             this.caret = caret;
             this.color = c;
@@ -236,8 +236,8 @@ public class Editor extends JPanel {
         this.propertyChangeSupport.addPropertyChangeListener(PROP_CARETLOCATION, new PropertyChangeListener() {
             @Override
             public void propertyChange(PropertyChangeEvent evt) {
-                int oldPos = (Integer) evt.getOldValue();
-                int newPos = (Integer) evt.getNewValue();
+                long oldPos = (Long) evt.getOldValue();
+                long newPos = (Long) evt.getNewValue();
                 if (newPos < offset) {
                     seek((newPos - 1 + ((newPos - oldPos + cols - 1) / cols)) / cols);
                 } else if (newPos >= offset + (rows * cols)) {
@@ -252,7 +252,7 @@ public class Editor extends JPanel {
 //                Editor.this.repaint(getCellRect(newPos));
 //                }
                 try {
-                    buf.position(getCaretLocation() - offset);
+                    buf.position((int) (getCaretLocation() - offset));
                     int pos = buf.position();
                     long v;
 
@@ -283,8 +283,6 @@ public class Editor extends JPanel {
                     calc.position(cols[1] + (v < 0 ? -1 : 0), l + 1);
                     calc.write("" + v);
                     buf.position(pos);
-
-
 
                     buf.order(ByteOrder.LITTLE_ENDIAN);
                     calc.position(cols[1], l + 2);
@@ -338,7 +336,7 @@ public class Editor extends JPanel {
         this.vetoableChangeSupport.addVetoableChangeListener(PROP_CARETLOCATION, new VetoableChangeListener() {
             @Override
             public void vetoableChange(PropertyChangeEvent evt) throws PropertyVetoException {
-                int v = (Integer) evt.getNewValue();
+                long v = (Long) evt.getNewValue();
                 long max = eof;
                 int min = 0;
                 if (v < min || v > max) {
@@ -350,14 +348,14 @@ public class Editor extends JPanel {
         requestFocusInWindow();
     }
     private Dimension m = new Dimension();
-    private int caretLocation = 10;
-    private int markLocation = -1;
+    private long caretLocation = 10;
+    private long markLocation = -1;
     private int cols = 16;
     private int rows = 16;
-    private int offset = 0;
+    private long offset = 0;
     boolean selecting;
 
-    void seek(int seek) {
+    void seek(long seek) {
         if (seek < 0) {
             seek = 0;
         }
@@ -368,7 +366,7 @@ public class Editor extends JPanel {
         repaint();
     }
 
-    void skip(int delta) {
+    void skip(long delta) {
         seek(offset + delta);
     }
 
@@ -431,7 +429,7 @@ public class Editor extends JPanel {
         if (rf != null) {
             try {
                 rf.seek(offset & 0xFFFFFFFF);
-                byte[] array = new byte[Math.min(cols * (rows + 1), (int) rf.length() - offset)];
+                byte[] array = new byte[(int) Math.min(cols * (rows + 1), rf.length() - offset)];
                 rf.read(array);
                 buf = ByteBuffer.wrap(array);
             } catch (IOException ex) {
@@ -509,16 +507,16 @@ public class Editor extends JPanel {
         }
     }
 
-    Rectangle getCellRect(Terminal term, int address, int width, int spacing) {
+    Rectangle getCellRect(Terminal term, long address, int width, int spacing) {
         address -= offset;
         Point p = term.cellToView(address * (width + spacing));
         return new Rectangle(p.x, p.y, m.width * width, m.height);
     }
 
-    Polygon calcPolygon(Terminal term, int markIdx, int caretIdx, int width, int spacing) {
+    Polygon calcPolygon(Terminal term, long markIdx, long caretIdx, int width, int spacing) {
         caretIdx -= offset;
-        int caretCol = (caretIdx % cols);
-        int caretRow = (caretIdx / cols);
+        long caretCol = (caretIdx % cols);
+        long caretRow = (caretIdx / cols);
         if (caretIdx < 0) {
             caretIdx = 0;
         } else if (caretIdx > (cols * rows)) {
@@ -528,8 +526,8 @@ public class Editor extends JPanel {
         caretPos.translate(-term.xPos, -term.yPos);
 
         markIdx -= offset;
-        int markCol = (markIdx % cols);
-        int markRow = (markIdx / cols);
+        long markCol = (markIdx % cols);
+        long markRow = (markIdx / cols);
         if (markIdx < 0) {
             markIdx = 0;
         } else if (markIdx > (cols * rows)) {
@@ -538,7 +536,7 @@ public class Editor extends JPanel {
         Point markPos = term.cellToView(markIdx * (width + spacing));
         markPos.translate(-term.xPos, -term.yPos);
 
-        Point rel = new Point(caretIdx - markIdx, caretRow - markRow);
+        Point rel = new Point((int) (caretIdx - markIdx), (int) (caretRow - markRow));
 
         if (rel.x >= 0) { // further right
             caretPos.x += m.width * width;
@@ -595,15 +593,15 @@ public class Editor extends JPanel {
     /**
      * @return the caretLocation
      */
-    public int getCaretLocation() {
+    public long getCaretLocation() {
         return caretLocation;
     }
 
     /**
      * @param caretLocation the caretLocation to set
      */
-    public void setCaretLocation(int caretLocation) throws PropertyVetoException {
-        int oldCaretLocation = this.caretLocation;
+    public void setCaretLocation(long caretLocation) throws PropertyVetoException {
+        long oldCaretLocation = this.caretLocation;
         if (oldCaretLocation == caretLocation) {
             return;
         }
@@ -615,15 +613,15 @@ public class Editor extends JPanel {
     /**
      * @return the markLocation
      */
-    public int getMarkLocation() {
+    public long getMarkLocation() {
         return markLocation;
     }
 
     /**
      * @param markLocation the markLocation to set
      */
-    public void setMarkLocation(int markLocation) throws PropertyVetoException {
-        int oldMarkLocation = this.markLocation;
+    public void setMarkLocation(long markLocation) throws PropertyVetoException {
+        long oldMarkLocation = this.markLocation;
         if (oldMarkLocation == markLocation) {
             return;
         }

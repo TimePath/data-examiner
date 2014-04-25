@@ -83,10 +83,10 @@ public class Terminal extends Component {
         }
     }
 
-    Point cellToView(int ptr) {
-        int x = ptr % w;
-        int y = ptr / w;
-        Point p = new Point(x * m.width, y * m.height);
+    Point cellToView(long ptr) {
+        long x = ptr % w;
+        long y = ptr / w;
+        Point p = new Point((int) (x * m.width), (int) (y * m.height));
         p.translate(xPos, yPos);
         return p;
     }
