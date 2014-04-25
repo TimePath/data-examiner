@@ -28,211 +28,46 @@ import java.io.RandomAccessFile;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
-/**
- *
- * @author TimePath
- */
-public class Editor extends JPanel {
+@SuppressWarnings("serial")
+public class Editor extends JPanel implements KeyListener, MouseMotionListener, MouseListener, MouseWheelListener {
 
     public static final String PROP_CARETLOCATION = "PROP_CARETLOCATION";
     public static final String PROP_MARKLOCATION = "PROP_MARKLOCATION";
+    private static final Logger LOG = Logger.getLogger(Editor.class.getName());
     private final transient PropertyChangeSupport propertyChangeSupport = new java.beans.PropertyChangeSupport(this);
     private final transient VetoableChangeSupport vetoableChangeSupport = new java.beans.VetoableChangeSupport(this);
     Terminal calc;
 
-    class Selection {
+    private List<Selection> tags = new LinkedList<Selection>();
 
-        long mark, caret;
-        Color color;
+    private Dimension m = new Dimension();
+    private long caretLocation = 10;
+    private long markLocation = -1;
+    private int cols = 16;
+    private int rows = 16;
+    private long offset = 0;
+    boolean selecting;
 
-        Selection(long mark, long caret, Color c) {
-            this.mark = mark;
-            this.caret = caret;
-            this.color = c;
-        }
-    }
-    private ArrayList<Selection> tags = new ArrayList<Selection>();
+    Terminal tD, tT;
+
+    ByteBuffer buf;
+    RandomAccessFile rf;
+    int eof;
 
     public Editor() {
         this.setBackground(Color.BLACK);
         this.setForeground(Color.WHITE);
-        this.addKeyListener(new KeyListener() {
-            @Override
-            public void keyTyped(KeyEvent e) {
-            }
-
-            @Override
-            public void keyPressed(KeyEvent e) {
-                try {
-                    int c = e.getKeyCode();
-                    switch (c) {
-                        case KeyEvent.VK_UP:
-                            setCaretLocation(getCaretLocation() - cols);
-                            if (!selecting) {
-                                setMarkLocation(-1);
-                            }
-                            break;
-                        case KeyEvent.VK_DOWN:
-                            setCaretLocation(Math.min(getCaretLocation() + cols, eof));
-                            if (!selecting) {
-                                setMarkLocation(-1);
-                            }
-                            break;
-                        case KeyEvent.VK_LEFT:
-                            setCaretLocation(getCaretLocation() - 1);
-                            if (!selecting) {
-                                setMarkLocation(-1);
-                            }
-                            break;
-                        case KeyEvent.VK_RIGHT:
-                            setCaretLocation(getCaretLocation() + 1);
-                            if (!selecting) {
-                                setMarkLocation(-1);
-                            }
-                            break;
-                        case KeyEvent.VK_SHIFT:
-                            selecting = true;
-                            if (Editor.this.getMarkLocation() < 0) {
-                                Editor.this.setMarkLocation(Editor.this.getCaretLocation());
-                            }
-                            break;
-                        case KeyEvent.VK_HOME:
-                            if (e.isControlDown()) {
-                                seek(0);
-                                setCaretLocation(0);
-                            } else {
-                                setCaretLocation(getCaretLocation() - getCaretLocation() % cols);
-                            }
-                            if (!selecting) {
-                                setMarkLocation(-1);
-                            }
-                            break;
-                        case KeyEvent.VK_END:
-                            if (e.isControlDown()) {
-                                seek(((eof + cols - 1) / cols * cols) - (cols * rows));
-                                repaint();
-                                setCaretLocation(((eof) % cols) + (cols * (rows - 1)));
-                            } else {
-                                setCaretLocation(Math.min(getCaretLocation() + (cols - 1 - getCaretLocation() % cols), eof));
-                            }
-                            if (!selecting) {
-                                setMarkLocation(-1);
-                            }
-                            break;
-                        case KeyEvent.VK_PAGE_DOWN:
-                            skip(cols);
-                            break;
-                        case KeyEvent.VK_PAGE_UP:
-                            skip(-cols);
-                            break;
-                        case KeyEvent.VK_ENTER:
-                            tags.add(new Selection(getMarkLocation(), getCaretLocation(), Color.RED));
-                            break;
-                    }
-                } catch (PropertyVetoException ex) {
-                    Logger.getLogger(Editor.class.getName()).log(Level.FINER, null, ex);
-                }
-            }
-
-            @Override
-            public void keyReleased(KeyEvent e) {
-                int c = e.getKeyCode();
-                switch (c) {
-                    case KeyEvent.VK_SHIFT:
-                        selecting = false;
-                        break;
-                }
-            }
-        });
-        this.addMouseMotionListener(new MouseMotionListener() {
-            @Override
-            public void mouseDragged(MouseEvent e) {
-                if (SwingUtilities.isLeftMouseButton(e)) {
-                    int c = tD.viewToCell(e.getPoint());
-                    if (c >= 0) {
-                        int i = (c + 1) / 3;
-                        try {
-                            Editor.this.setCaretLocation(i + offset);
-                        } catch (PropertyVetoException ex) {
-                        }
-                    }
-
-                    c = tT.viewToCell(e.getPoint());
-                    if (c >= 0) {
-                        try {
-                            Editor.this.setCaretLocation(c + offset);
-                        } catch (PropertyVetoException ex) {
-                        }
-                    }
-                }
-            }
-
-            @Override
-            public void mouseMoved(MouseEvent e) {
-            }
-        });
-        this.addMouseListener(new MouseListener() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-            }
-
-            @Override
-            public void mousePressed(MouseEvent e) {
-                requestFocusInWindow();
-                if (SwingUtilities.isLeftMouseButton(e)) {
-                    int c = tD.viewToCell(e.getPoint());
-                    if (c >= 0) {
-                        int i = (c + 1) / 3;
-                        try {
-                            if (!selecting) {
-                                Editor.this.setMarkLocation(i + offset);
-                            }
-                            Editor.this.setCaretLocation(i + offset);
-                        } catch (PropertyVetoException ex) {
-                        }
-                    }
-                    c = tT.viewToCell(e.getPoint());
-                    if (c >= 0) {
-                        try {
-                            if (!selecting) {
-                                Editor.this.setMarkLocation(c + offset);
-                            }
-                            Editor.this.setCaretLocation(c + offset);
-                        } catch (PropertyVetoException ex) {
-                        }
-                    }
-                }
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent e) {
-            }
-
-            @Override
-            public void mouseEntered(MouseEvent e) {
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-            }
-        });
-        this.addMouseWheelListener(new MouseWheelListener() {
-            @Override
-            public void mouseWheelMoved(MouseWheelEvent e) {
-                if (e.getScrollType() == MouseWheelEvent.WHEEL_UNIT_SCROLL) {
-                    skip(e.getUnitsToScroll() * cols);
-                    Editor.this.repaint();
-                } else {
-                    System.err.println(offset);
-                }
-            }
-        });
+        this.addKeyListener(this);
+        this.addMouseMotionListener(this);
+        this.addMouseListener(this);
+        this.addMouseWheelListener(this);
         this.propertyChangeSupport.addPropertyChangeListener(PROP_CARETLOCATION, new PropertyChangeListener() {
             @Override
             public void propertyChange(PropertyChangeEvent evt) {
@@ -347,13 +182,173 @@ public class Editor extends JPanel {
         this.setFocusable(true);
         requestFocusInWindow();
     }
-    private Dimension m = new Dimension();
-    private long caretLocation = 10;
-    private long markLocation = -1;
-    private int cols = 16;
-    private int rows = 16;
-    private long offset = 0;
-    boolean selecting;
+
+    @Override
+    public void keyTyped(KeyEvent e) {
+    }
+
+    @Override
+    public void keyPressed(KeyEvent e) {
+        try {
+            int c = e.getKeyCode();
+            switch (c) {
+                case KeyEvent.VK_UP:
+                    setCaretLocation(getCaretLocation() - cols);
+                    if (!selecting) {
+                        setMarkLocation(-1);
+                    }
+                    break;
+                case KeyEvent.VK_DOWN:
+                    setCaretLocation(Math.min(getCaretLocation() + cols, eof));
+                    if (!selecting) {
+                        setMarkLocation(-1);
+                    }
+                    break;
+                case KeyEvent.VK_LEFT:
+                    setCaretLocation(getCaretLocation() - 1);
+                    if (!selecting) {
+                        setMarkLocation(-1);
+                    }
+                    break;
+                case KeyEvent.VK_RIGHT:
+                    setCaretLocation(getCaretLocation() + 1);
+                    if (!selecting) {
+                        setMarkLocation(-1);
+                    }
+                    break;
+                case KeyEvent.VK_SHIFT:
+                    selecting = true;
+                    if (Editor.this.getMarkLocation() < 0) {
+                        Editor.this.setMarkLocation(Editor.this.getCaretLocation());
+                    }
+                    break;
+                case KeyEvent.VK_HOME:
+                    if (e.isControlDown()) {
+                        seek(0);
+                        setCaretLocation(0);
+                    } else {
+                        setCaretLocation(getCaretLocation() - getCaretLocation() % cols);
+                    }
+                    if (!selecting) {
+                        setMarkLocation(-1);
+                    }
+                    break;
+                case KeyEvent.VK_END:
+                    if (e.isControlDown()) {
+                        seek(((eof + cols - 1) / cols * cols) - (cols * rows));
+                        repaint();
+                        setCaretLocation(((eof) % cols) + (cols * (rows - 1)));
+                    } else {
+                        setCaretLocation(Math.min(getCaretLocation() + (cols - 1 - getCaretLocation() % cols), eof));
+                    }
+                    if (!selecting) {
+                        setMarkLocation(-1);
+                    }
+                    break;
+                case KeyEvent.VK_PAGE_DOWN:
+                    skip(cols);
+                    break;
+                case KeyEvent.VK_PAGE_UP:
+                    skip(-cols);
+                    break;
+                case KeyEvent.VK_ENTER:
+                    tags.add(new Selection(getMarkLocation(), getCaretLocation(), Color.RED));
+                    break;
+            }
+        } catch (PropertyVetoException ex) {
+            Logger.getLogger(Editor.class.getName()).log(Level.FINER, null, ex);
+        }
+    }
+
+    @Override
+    public void keyReleased(KeyEvent e) {
+        int c = e.getKeyCode();
+        switch (c) {
+            case KeyEvent.VK_SHIFT:
+                selecting = false;
+                break;
+        }
+    }
+
+    @Override
+    public void mouseDragged(MouseEvent e) {
+        if (SwingUtilities.isLeftMouseButton(e)) {
+            int c = tD.viewToCell(e.getPoint());
+            if (c >= 0) {
+                int i = (c + 1) / 3;
+                try {
+                    Editor.this.setCaretLocation(i + offset);
+                } catch (PropertyVetoException ex) {
+                }
+            }
+
+            c = tT.viewToCell(e.getPoint());
+            if (c >= 0) {
+                try {
+                    Editor.this.setCaretLocation(c + offset);
+                } catch (PropertyVetoException ex) {
+                }
+            }
+        }
+    }
+
+    @Override
+    public void mouseMoved(MouseEvent e) {
+    }
+
+    @Override
+    public void mouseClicked(MouseEvent e) {
+    }
+
+    @Override
+    public void mousePressed(MouseEvent e) {
+        requestFocusInWindow();
+        if (SwingUtilities.isLeftMouseButton(e)) {
+            int c = tD.viewToCell(e.getPoint());
+            if (c >= 0) {
+                int i = (c + 1) / 3;
+                try {
+                    if (!selecting) {
+                        Editor.this.setMarkLocation(i + offset);
+                    }
+                    Editor.this.setCaretLocation(i + offset);
+                } catch (PropertyVetoException ex) {
+                }
+            }
+            c = tT.viewToCell(e.getPoint());
+            if (c >= 0) {
+                try {
+                    if (!selecting) {
+                        Editor.this.setMarkLocation(c + offset);
+                    }
+                    Editor.this.setCaretLocation(c + offset);
+                } catch (PropertyVetoException ex) {
+                }
+            }
+        }
+    }
+
+    @Override
+    public void mouseReleased(MouseEvent e) {
+    }
+
+    @Override
+    public void mouseEntered(MouseEvent e) {
+    }
+
+    @Override
+    public void mouseExited(MouseEvent e) {
+    }
+
+    @Override
+    public void mouseWheelMoved(MouseWheelEvent e) {
+        if (e.getScrollType() == MouseWheelEvent.WHEEL_UNIT_SCROLL) {
+            skip(e.getUnitsToScroll() * cols);
+            Editor.this.repaint();
+        } else {
+            System.err.println(offset);
+        }
+    }
 
     void seek(long seek) {
         if (seek < 0) {
@@ -375,7 +370,6 @@ public class Editor extends JPanel {
         super.repaint(r.x, r.y, r.width + 1, r.height + 1);
 //        repaint();
     }
-    Terminal tD, tT;
 
     @Override
     public void paint(Graphics graphics) {
@@ -461,7 +455,7 @@ public class Editor extends JPanel {
 
                 StringBuilder sb2 = new StringBuilder(cols * 3 - 1);
                 for (int s = 0; s < read; s++) {
-                    sb2.append(disp(b[s] & 0xFF));
+                    sb2.append(Utils.displayChar(b[s] & 0xFF));
                 }
                 tT.position(0, i);
                 tT.write(sb2.toString());
@@ -581,15 +575,6 @@ public class Editor extends JPanel {
         return p;
     }
 
-    private String disp(int b) {
-        char c = (char) b;
-        boolean valid = !Character.isWhitespace(c) && !Character.isISOControl(c);
-        if (!valid) {
-            c = '.';
-        }
-        return "" + c;
-    }
-
     /**
      * @return the caretLocation
      */
@@ -599,6 +584,7 @@ public class Editor extends JPanel {
 
     /**
      * @param caretLocation the caretLocation to set
+     * @throws java.beans.PropertyVetoException
      */
     public void setCaretLocation(long caretLocation) throws PropertyVetoException {
         long oldCaretLocation = this.caretLocation;
@@ -619,6 +605,7 @@ public class Editor extends JPanel {
 
     /**
      * @param markLocation the markLocation to set
+     * @throws java.beans.PropertyVetoException
      */
     public void setMarkLocation(long markLocation) throws PropertyVetoException {
         long oldMarkLocation = this.markLocation;
@@ -629,9 +616,6 @@ public class Editor extends JPanel {
         this.markLocation = markLocation;
         propertyChangeSupport.firePropertyChange(PROP_MARKLOCATION, oldMarkLocation, markLocation);
     }
-    ByteBuffer buf;
-    RandomAccessFile rf;
-    int eof;
 
     void setData(RandomAccessFile rf) {
         this.rf = rf;

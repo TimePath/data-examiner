@@ -18,11 +18,15 @@ import java.util.logging.Logger;
 @SuppressWarnings("serial")
 public class Terminal extends Component {
 
+    private static final Logger LOG = Logger.getLogger(Terminal.class.getName());
+
     int xPos, yPos;
     int w, h;
     Color bg[], fg[];
     char c[];
     Dimension m;
+
+    Point caret = new Point(0, 0);
 
     public Terminal(int w, int h) {
         this.w = w;
@@ -70,7 +74,6 @@ public class Terminal extends Component {
         g.setTransform(oldAt);
         g.setColor(oldColor);
     }
-    Point caret = new Point(0, 0);
 
     void position(int x, int y) {
         caret.setLocation(x, y);
@@ -103,5 +106,4 @@ public class Terminal extends Component {
         int y = p.y / m.height;
         return (w * y) + x;
     }
-    private static final Logger LOG = Logger.getLogger(Terminal.class.getName());
 }
