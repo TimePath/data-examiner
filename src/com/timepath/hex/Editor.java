@@ -403,14 +403,15 @@ public class Editor extends Multiplexer implements KeyListener, MouseMotionListe
                 } catch (PropertyVetoException ex) {
                 }
             }
-            if ((termText.viewToCell(e.getPoint())) >= 0) {
+            if ((c = termText.viewToCell(e.getPoint())) >= 0) {
                 try {
                     this.setCaretLocation(c + offset);
                 } catch (PropertyVetoException ex) {
                 }
             }
+            update();
+            repaint();
         }
-        repaint();
     }
 
     @Override
