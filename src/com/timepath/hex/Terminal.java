@@ -9,11 +9,13 @@ import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
+import java.util.logging.Logger;
 
 /**
  *
  * @author TimePath
  */
+@SuppressWarnings("serial")
 public class Terminal extends Component {
 
     int xPos, yPos;
@@ -50,7 +52,7 @@ public class Terminal extends Component {
         int ascent = fm.getMaxAscent();
         int descent = fm.getMaxDescent();
         int leading = 2;
-        m = new Dimension(fm.getMaxAdvance(), (int) (ascent + descent + leading));
+        m = new Dimension(fm.getMaxAdvance(), ascent + descent + leading);
 
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
@@ -97,4 +99,5 @@ public class Terminal extends Component {
         int y = p.y / m.height;
         return (w * y) + x;
     }
+    private static final Logger LOG = Logger.getLogger(Terminal.class.getName());
 }

@@ -14,6 +14,7 @@ import java.util.logging.Logger;
  *
  * @author TimePath
  */
+@SuppressWarnings("serial")
 public class HexEditor extends javax.swing.JFrame {
 
     /**
@@ -196,4 +197,5 @@ public class HexEditor extends javax.swing.JFrame {
     private javax.swing.JMenuItem jMenuItem1;
     private javax.swing.JTabbedPane jTabbedPane1;
     // End of variables declaration//GEN-END:variables
+    private static final Logger LOG = Logger.getLogger(HexEditor.class.getName());
 }

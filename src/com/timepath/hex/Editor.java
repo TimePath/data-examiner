@@ -308,8 +308,6 @@ public class Editor extends JPanel {
                     calc.write("" + v);
                     buf.position(pos);
 
-
-
                     buf.order(ByteOrder.LITTLE_ENDIAN);
                     calc.position(cols[1], l + 4);
                     calc.write("" + ((long) buf.getInt() & 0xFFFFFFFFL));
