@@ -54,13 +54,17 @@ public class Terminal extends Component {
         int leading = 2;
         m = new Dimension(fm.getMaxAdvance(), ascent + descent + leading);
 
+        char character;
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
                 Rectangle r = new Rectangle(x * m.width, y * m.height, m.width, m.height);
                 g.setColor(bg[x + y * w]);
                 g.fillRect(r.x, r.y, r.width, r.height);
                 g.setColor(fg[x + y * w]);
-                g.drawString("" + c[x + y * w], r.x, r.y + ascent);
+                if ((character = c[x + y * w]) == 0) {
+                    continue;
+                }
+                g.drawString(String.valueOf(character), r.x, r.y + ascent);
             }
         }
         g.setTransform(oldAt);
