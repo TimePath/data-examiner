@@ -1,6 +1,6 @@
-package com.timepath.hex;
+package com.timepath.curses;
 
-import static com.timepath.hex.Terminal.FONT_SIZE;
+import static com.timepath.curses.Terminal.FONT_SIZE;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -21,27 +21,26 @@ public class Terminal extends Component {
 
     private static final Logger LOG = Logger.getLogger(Terminal.class.getName());
 
-    int xPos, yPos;
-    int w, h;
-    Color[] bgBuf, fgBuf;
-    char[] charBuf;
-    Dimension m;
+    public int xPos, yPos;
+    public int w, h;
+    public Color[] bgBuf, fgBuf;
+    public char[] charBuf;
+    public Dimension m;
 
-    Point caret = new Point(0, 0);
+    public Point caret = new Point(0, 0);
 
     public static final int FONT_SIZE = 12;
 
-    int leading = 0;
+    public int leading = 0;
 
-    Font f = new Font(Font.MONOSPACED, Font.PLAIN, (int) Math.round(FONT_SIZE * Toolkit.getDefaultToolkit().getScreenResolution() / 72.0)); // Java2D = 72 DPI
-    private FontMetrics fm;
+    public Font f = new Font(Font.MONOSPACED, Font.PLAIN, (int) Math.round(FONT_SIZE * Toolkit.getDefaultToolkit().getScreenResolution() / 72.0)); // Java2D = 72 DPI
+    public FontMetrics fm = this.getFontMetrics(f);
 
     protected Terminal() {
         super();
-        fm = this.getFontMetrics(f);
         int ascent = fm.getMaxAscent();
         int descent = fm.getMaxDescent();
-        int leading = 2;
+        leading = 2;
         m = new Dimension(fm.getMaxAdvance(), ascent + descent + leading);
     }
 
@@ -116,7 +115,7 @@ public class Terminal extends Component {
         }
     }
 
-    Point cellToView(long ptr) {
+    public Point cellToView(long ptr) {
         long x = ptr % w;
         long y = ptr / w;
         Point p = new Point((int) (x * m.width), (int) (y * m.height));
@@ -124,7 +123,7 @@ public class Terminal extends Component {
         return p;
     }
 
-    int viewToCell(Point p) {
+    public int viewToCell(Point p) {
         p.translate(-xPos * m.width, -yPos * m.height);
         if (p.x < 0 || p.x >= w * m.width) {
             return -1;

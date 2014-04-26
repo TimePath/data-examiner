@@ -1,4 +1,4 @@
-package com.timepath.hex;
+package com.timepath.curses;
 
 import java.awt.Color;
 import java.awt.Graphics;
