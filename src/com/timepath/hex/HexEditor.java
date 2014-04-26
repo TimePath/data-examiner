@@ -206,7 +206,10 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         }
 
         buf.position(pos, bitShift);
-        pos = buf.position();
+        byte[] temp = new byte[Math.min(buf.remaining(), 4)];
+        buf.get(temp);
+        buf.position(pos, bitShift);
+        ByteBuffer calcBuf = ByteBuffer.wrap(temp);
 
         int[] idx = {0, 6, 18};
         int l = 0;
@@ -227,46 +230,50 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         long v;
 
         // byte
-        v = buf.get();
+        calcBuf.position(0);
+        v = calcBuf.get();
         termCalc.position(idx[1], l);
         termCalc.write(v & 0xFF);
         termCalc.position(idx[1] + (v < 0 ? -1 : 0), l + 1);
         termCalc.write(v);
-        buf.position(pos, bitShift);
+        
+        // binary
+        termCalc.position(idx[2], l);
+        termCalc.write(Long.toBinaryString(v));
 
         // short
-        buf.order(ByteOrder.LITTLE_ENDIAN);
-        v = buf.getShort();
+        calcBuf.position(0);
+        calcBuf.order(ByteOrder.LITTLE_ENDIAN);
+        v = calcBuf.getShort();
         termCalc.position(idx[1], l + 2);
         termCalc.write(v & 0xFFFF);
         termCalc.position(idx[1] + (v < 0 ? -1 : 0), l + 3);
         termCalc.write(v);
-        buf.position(pos, bitShift);
 
-        buf.order(ByteOrder.BIG_ENDIAN);
-        v = buf.getShort();
+        calcBuf.position(0);
+        calcBuf.order(ByteOrder.BIG_ENDIAN);
+        v = calcBuf.getShort();
         termCalc.position(idx[2], l + 2);
         termCalc.write(v & 0xFFFF);
         termCalc.position(idx[2] + (v < 0 ? -1 : 0), l + 3);
         termCalc.write(v);
-        buf.position(pos, bitShift);
 
         // int
-        buf.order(ByteOrder.LITTLE_ENDIAN);
-        v = buf.getInt();
+        calcBuf.position(0);
+        calcBuf.order(ByteOrder.LITTLE_ENDIAN);
+        v = calcBuf.getInt();
         termCalc.position(idx[1], l + 4);
         termCalc.write(v & 0xFFFFFFFFL);
         termCalc.position(idx[1] + (v < 0 ? -1 : 0), l + 5);
         termCalc.write(v);
-        buf.position(pos, bitShift);
 
-        buf.order(ByteOrder.BIG_ENDIAN);
-        v = buf.getInt();
+        calcBuf.position(0);
+        calcBuf.order(ByteOrder.BIG_ENDIAN);
+        v = calcBuf.getInt();
         termCalc.position(idx[2], l + 4);
         termCalc.write(v & 0xFFFFFFFFL);
         termCalc.position(idx[2] + (v < 0 ? -1 : 0), l + 5);
         termCalc.write(v);
-        buf.position(pos, bitShift);
     }
 
     @Override
