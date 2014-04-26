@@ -233,9 +233,8 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         termCalc.write("± 32");
 
         long v;
-        
+
         // byte
-        
         v = buf.get();
         termCalc.position(idx[1], l);
         termCalc.write(v & 0xFF);
@@ -244,7 +243,6 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         buf.position(pos);
 
         // short
-        
         buf.order(ByteOrder.LITTLE_ENDIAN);
         v = buf.getShort();
         termCalc.position(idx[1], l + 2);
@@ -262,7 +260,6 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         buf.position(pos);
 
         // int
-        
         buf.order(ByteOrder.LITTLE_ENDIAN);
         v = buf.getInt();
         termCalc.position(idx[1], l + 4);
@@ -456,12 +453,19 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
             }
         }
 
-        g.setColor(Color.YELLOW);
-        g.draw(getCellRect(termData, getMarkLocation(), 2, 1));
-        g.draw(getCellRect(termText, getMarkLocation(), 1, 0));
-        g.setColor(Color.WHITE);
-        g.draw(getCellRect(termData, getCaretLocation(), 2, 1));
-        g.draw(getCellRect(termText, getCaretLocation(), 1, 0));
+        long markLoc = getMarkLocation();
+        if (markLoc >= offset && markLoc < offset + (cols * rows)) {
+            g.setColor(Color.YELLOW);
+            g.draw(getCellRect(termData, markLoc, 2, 1));
+            g.draw(getCellRect(termText, markLoc, 1, 0));
+        }
+
+        long caretLoc = getCaretLocation();
+        if (caretLoc >= offset && caretLoc < offset + (cols * rows)) {
+            g.setColor(Color.WHITE);
+            g.draw(getCellRect(termData, caretLoc, 2, 1));
+            g.draw(getCellRect(termText, caretLoc, 1, 0));
+        }
     }
 
     protected Rectangle getCellRect(Terminal term, long address, int width, int spacing) {

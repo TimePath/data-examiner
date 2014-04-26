@@ -31,8 +31,6 @@ public class Terminal extends Component {
 
     public static final int FONT_SIZE = 12;
 
-    public int leading = 0;
-
     public Font f = new Font(Font.MONOSPACED, Font.PLAIN, (int) Math.round(FONT_SIZE * Toolkit.getDefaultToolkit().getScreenResolution() / 72.0)); // Java2D = 72 DPI
     public FontMetrics fm = this.getFontMetrics(f);
 
@@ -40,8 +38,7 @@ public class Terminal extends Component {
         super();
         int ascent = fm.getMaxAscent();
         int descent = fm.getMaxDescent();
-        leading = 2;
-        m = new Dimension(fm.getMaxAdvance(), ascent + descent + leading);
+        m = new Dimension(fm.getMaxAdvance(), ascent + descent);
     }
 
     public Terminal(int w, int h) {
