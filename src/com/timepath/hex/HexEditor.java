@@ -237,6 +237,12 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         termCalc.position(idx[1] + (v < 0 ? -1 : 0), l + 1);
         termCalc.write(v);
 
+        // binary
+        for (int i = 0; i < temp.length; i++) {
+            termCalc.position(idx[2] + (i * 9), l);
+            termCalc.write(new StringBuilder(Utils.binaryDump(temp[i] & 0xFF)));
+        }
+
         // short
         calcBuf.position(0);
         calcBuf.order(ByteOrder.LITTLE_ENDIAN);
@@ -270,14 +276,6 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         termCalc.write(v & 0xFFFFFFFFL);
         termCalc.position(idx[2] + (v < 0 ? -1 : 0), l + 5);
         termCalc.write(v);
-
-        // binary
-        termCalc.position(idx[2], l);
-        for (byte b : temp) {
-            termCalc.write(new StringBuilder(Utils.binaryDump(b & 0xFF)));
-            termCalc.position(idx[2] += 9, l);
-        }
-
     }
 
     @Override
