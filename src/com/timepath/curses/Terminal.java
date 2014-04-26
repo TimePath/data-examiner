@@ -2,7 +2,6 @@ package com.timepath.curses;
 
 import static com.timepath.curses.Terminal.FONT_SIZE;
 import java.awt.Color;
-import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontMetrics;
@@ -15,9 +14,10 @@ import java.awt.Toolkit;
 import java.awt.geom.AffineTransform;
 import java.util.Arrays;
 import java.util.logging.Logger;
+import javax.swing.JComponent;
 
 @SuppressWarnings("serial")
-public class Terminal extends Component {
+public class Terminal extends JComponent {
 
     private static final Logger LOG = Logger.getLogger(Terminal.class.getName());
 

@@ -41,14 +41,14 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
 
     private static final Logger LOG = Logger.getLogger(HexEditor.class.getName());
 
-    protected ByteBuffer buf;
+    protected ByteBuffer sourceBuf, buf;
     protected long caretLocation;
     protected int cols = 16;
     protected int eof;
     protected long markLocation;
     protected long offset;
     protected final transient PropertyChangeSupport propertyChangeSupport = new java.beans.PropertyChangeSupport(this);
-    protected RandomAccessFile rf;
+    protected RandomAccessFile sourceRAF;
     protected int rows = 16;
     protected boolean selecting;
     private final List<Selection> tags = new LinkedList<Selection>();
@@ -96,12 +96,11 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         this.propertyChangeSupport.addPropertyChangeListener(PROP_CARETLOCATION, new PropertyChangeListener() {
             @Override
             public void propertyChange(PropertyChangeEvent evt) {
-                long oldPos = (Long) evt.getOldValue();
                 long newPos = (Long) evt.getNewValue();
                 if (newPos < offset) { // on previous page
-                    seek(offset - (rows * cols));
-                } else if (newPos >= offset + (rows * cols)) { // on next page
-                    seek(offset + (rows * cols));
+                    skip(-(cols * rows));
+                } else if (newPos >= offset + (cols * rows)) { // on next page
+                    skip((cols * rows));
                 }
 
                 if (selecting) {
@@ -126,14 +125,7 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
     public void update() {
         updateRows();
 
-        updateOffset();
-
-        if (buf == null) {
-            return;
-        }
-
         updateData();
-
         try {
             updateStats();
         } catch (BufferUnderflowException bue) {
@@ -161,24 +153,14 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         }
     }
 
-    public void updateOffset() {
-        if (rf == null) {
-            return;
-        }
-        try {
-            rf.seek(offset & 0xFFFFFFFF);
-            byte[] array = new byte[(int) Math.min(cols * rows, rf.length() - offset)];
-            rf.read(array);
-            buf = ByteBuffer.wrap(array);
-        } catch (IOException ex) {
-            LOG.log(Level.SEVERE, null, ex);
-        }
-    }
-
     public void updateData() {
         termData.clear();
         termText.clear();
 
+        if (buf == null) {
+            return;
+        }
+        buf.position(0);
         int i = 0;
         byte b[] = new byte[cols];
         while (buf.hasRemaining()) {
@@ -209,7 +191,7 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         int pos = (int) (getCaretLocation() - offset);
         termCalc.clear();
 
-        if (pos > buf.limit() || pos < 0) {
+        if (buf == null || pos > buf.limit() || pos < 0) {
             return;
         }
 
@@ -304,15 +286,14 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
                 case KeyEvent.VK_HOME:
                     if (e.isControlDown()) {
                         seek(0);
-                        setCaretLocation(0);
                     } else {
                         setCaretLocation(getCaretLocation() - (getCaretLocation() % cols));
                     }
                     break;
                 case KeyEvent.VK_END:
                     if (e.isControlDown()) {
-                        seek(((eof + cols - 1) / cols * cols) - (cols * rows));
-                        setCaretLocation(((eof) % cols) + (cols * (rows - 1)));
+                        int rowsTotal = (eof + (cols - 1)) / rows;
+                        seek((cols * rowsTotal) - (cols * rows));
                     } else {
                         setCaretLocation(Math.min(getCaretLocation() + (cols - 1 - getCaretLocation() % cols), eof));
                     }
@@ -373,14 +354,14 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
                 if ((c + 1) % (cols * 3) != 0) {
                     int i = (c + 1) / 3;
                     try {
-                        this.setCaretLocation(i + offset);
+                        this.setCaretLocation(offset + i);
                     } catch (PropertyVetoException pve) {
                     }
                 }
             }
             if ((c = termText.viewToCell(e.getPoint())) >= 0) {
                 try {
-                    this.setCaretLocation(c + offset);
+                    this.setCaretLocation(offset + c);
                 } catch (PropertyVetoException pve) {
                 }
             }
@@ -411,7 +392,22 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
     }
 
     protected void seek(long seek) {
-        offset = Math.max(Math.min(seek, eof), 0);
+        seek = Math.max(Math.min(seek, eof), 0);
+        if (sourceRAF != null) {
+            try {
+                sourceRAF.seek(seek & 0xFFFFFFFFFFFFFFFFL);
+                byte[] array = new byte[(int) Math.min(cols * rows, sourceRAF.length() - seek)];
+                sourceRAF.read(array);
+                buf = ByteBuffer.wrap(array);
+                offset = seek;
+            } catch (IOException ex) {
+                LOG.log(Level.SEVERE, null, ex);
+            }
+        } else if (sourceBuf != null) {
+            sourceBuf.position((int) seek);
+            buf = Utils.getSlice(sourceBuf);
+            offset = seek;
+        }
     }
 
     protected void skip(long delta) {
@@ -573,12 +569,23 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
 
     public void setData(RandomAccessFile rf) {
         reset();
-        this.rf = rf;
+        this.sourceRAF = rf;
         try {
             this.eof = (int) rf.length() - 1;
         } catch (IOException ex) {
             LOG.log(Level.SEVERE, null, ex);
         }
+        seek(0);
+        update();
+        repaint();
+    }
+
+    public void setData(ByteBuffer buf) {
+        reset();
+        this.sourceBuf = buf;
+        this.buf = buf;
+        this.eof = buf.capacity() - 1;
+        seek(0);
         update();
         repaint();
     }
@@ -586,6 +593,5 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
     private void reset() {
         markLocation = -1;
         caretLocation = 0;
-        offset = 0;
     }
 }
