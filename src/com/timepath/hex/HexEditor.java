@@ -67,7 +67,7 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         termText.xPos = 9 + (cols * 3);
         termText.yPos = 1;
 
-        termCalc = new Terminal(28, 6);
+        termCalc = new Terminal(54, 6);
         termCalc.yPos = 1 + rows + 1;
 
         termHeader = new Terminal(3 * cols - 1, 1);
@@ -236,10 +236,6 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         termCalc.write(v & 0xFF);
         termCalc.position(idx[1] + (v < 0 ? -1 : 0), l + 1);
         termCalc.write(v);
-        
-        // binary
-        termCalc.position(idx[2], l);
-        termCalc.write(Long.toBinaryString(v & 0xFF));
 
         // short
         calcBuf.position(0);
@@ -274,6 +270,14 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         termCalc.write(v & 0xFFFFFFFFL);
         termCalc.position(idx[2] + (v < 0 ? -1 : 0), l + 5);
         termCalc.write(v);
+
+        // binary
+        termCalc.position(idx[2], l);
+        for (byte b : temp) {
+            termCalc.write(new StringBuilder(Utils.binaryDump(b & 0xFF)));
+            termCalc.position(idx[2] += 9, l);
+        }
+
     }
 
     @Override
@@ -406,9 +410,16 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
                 if (e.getWheelRotation() > 0) {
                     bitShift += 1;
                 } else if (e.getWheelRotation() < 0) {
-                    bitShift += 7;
+                    bitShift -= 1;
                 }
-                bitShift %= 8;
+                if (bitShift < 0 || bitShift >= 8) {
+                    try {
+                        setCaretLocation(getCaretLocation() + Math.round(Math.signum(bitShift)));
+                    } catch (PropertyVetoException ex) {
+                    }
+                    bitShift += 8;
+                    bitShift %= 8;
+                }
             } else {
                 skip(e.getUnitsToScroll() * cols);
             }

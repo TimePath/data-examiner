@@ -12,6 +12,10 @@ public class Utils {
 
     private static final Logger LOG = Logger.getLogger(Utils.class.getName());
 
+    public static String binaryDump(long l) {
+        return String.format("%8s", Long.toBinaryString(l)).replace(' ', '0');
+    }
+    
     public static String displayChar(int c) {
         return String.valueOf(Character.isWhitespace(c)
                 || Character.isISOControl(c) ? '.' : (char) c);
