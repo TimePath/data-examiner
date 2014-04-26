@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.swing.JPanel;
 
 /**
  *
@@ -27,7 +28,9 @@ public class Main extends javax.swing.JFrame {
         } catch (IOException ex) {
             Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
         }
-        this.jTabbedPane1.add(f.getName(), t);
+        JPanel p = new JPanel();
+        p.add(t);
+        this.jTabbedPane1.add(f.getName(), p);
         t.requestFocusInWindow();
         this.pack();
     }
