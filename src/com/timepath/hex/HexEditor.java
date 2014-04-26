@@ -239,7 +239,7 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         
         // binary
         termCalc.position(idx[2], l);
-        termCalc.write(Long.toBinaryString(v));
+        termCalc.write(Long.toBinaryString(v & 0xFF));
 
         // short
         calcBuf.position(0);
