@@ -26,6 +26,7 @@ import java.io.RandomAccessFile;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Level;
@@ -68,10 +69,13 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
 
         termHeader = new Terminal(3 * cols - 1, 1);
         termHeader.xPos = 9;
+        initColumns();
 
         termLines = new Terminal(8, rows);
         termLines.yPos = 1;
-        
+        Arrays.fill(termLines.fgBuf, Color.GREEN);
+        Arrays.fill(termLines.bgBuf, Color.DARK_GRAY);
+
         this.setBackground(Color.BLACK);
 
         super.add(termData, termText, termLines, termHeader, termCalc);
@@ -120,8 +124,6 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
     }
 
     public void update() {
-        updateColumns();
-
         updateRows();
 
         updateOffset();
@@ -139,24 +141,21 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         }
     }
 
-    public void updateColumns() {
-        for (int i = 0; i < termHeader.w; i++) {
-            termHeader.bgBuf[i] = Color.WHITE;
-            termHeader.fgBuf[i] = Color.BLACK;
-            if (i % 3 == 0) {
-                termHeader.position(i, 0);
-                termHeader.write(String.format("%02X", (i / 3) & 0xFFFFF));
-            }
+    public void initColumns() {
+        Arrays.fill(termHeader.bgBuf, Color.WHITE);
+        Arrays.fill(termHeader.fgBuf, Color.BLACK);
+
+        StringBuilder sb = new StringBuilder(cols * 3);
+        for (int i = 0; i < cols; i++) {
+            sb.append(String.format(" %02X", i & 0xFF));
         }
+        termHeader.position(0, 0);
+        termHeader.write(sb.substring(1));
     }
 
     public void updateRows() {
         for (int i = 0; i < rows; i++) {
-            for (int x = 0; x < termLines.w; x++) {
-                termLines.fgBuf[x + i * termLines.w] = Color.GREEN;
-                termLines.bgBuf[x + i * termLines.w] = Color.DARK_GRAY;
-            }
-            String address = String.format("%08X", (i * cols + offset) & 0xFFFFF);
+            String address = String.format("%08X", (i * cols + offset) & 0xFFFFFFFF);
             termLines.position(0, i);
             termLines.write(address);
         }
@@ -168,7 +167,7 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         }
         try {
             rf.seek(offset & 0xFFFFFFFF);
-            byte[] array = new byte[(int) Math.min(cols * (rows + 1), rf.length() - offset)];
+            byte[] array = new byte[(int) Math.min(cols * rows, rf.length() - offset)];
             rf.read(array);
             buf = ByteBuffer.wrap(array);
         } catch (IOException ex) {
@@ -186,15 +185,14 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
             int read = Math.min(buf.remaining(), b.length);
             buf.get(b, 0, read);
 
-            StringBuilder sb = new StringBuilder(cols * 3 - 1);
+            StringBuilder sb = new StringBuilder(read * 3);
             for (int s = 0; s < read; s++) {
                 sb.append(String.format(" %02X", (b[s] & 0xFF) & 0xFFFFF));
             }
-
             termData.position(0, i);
-            termData.write(sb.toString().substring(1));
+            termData.write(sb.substring(1));
 
-            StringBuilder sb2 = new StringBuilder(cols * 3 - 1);
+            StringBuilder sb2 = new StringBuilder(read);
             for (int s = 0; s < read; s++) {
                 sb2.append(Utils.displayChar(b[s] & 0xFF));
             }
@@ -217,7 +215,6 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
 
         buf.position(pos);
         pos = buf.position();
-        long v;
 
         int[] idx = {0, 6, 18};
         int l = 0;
@@ -235,59 +232,51 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         termCalc.position(idx[0], l + 5);
         termCalc.write("± 32");
 
-        buf.order(ByteOrder.LITTLE_ENDIAN);
-        termCalc.position(idx[1], l);
-        termCalc.write("" + (buf.get() & 0xFF));
-        buf.position(pos);
-
-        buf.order(ByteOrder.LITTLE_ENDIAN);
+        long v;
+        
+        // byte
+        
         v = buf.get();
+        termCalc.position(idx[1], l);
+        termCalc.write(v & 0xFF);
         termCalc.position(idx[1] + (v < 0 ? -1 : 0), l + 1);
-        termCalc.write("" + v);
+        termCalc.write(v);
         buf.position(pos);
 
+        // short
+        
         buf.order(ByteOrder.LITTLE_ENDIAN);
+        v = buf.getShort();
         termCalc.position(idx[1], l + 2);
-        termCalc.write("" + (buf.getShort() & 0xFFFF));
-        buf.position(pos);
-
-        buf.order(ByteOrder.BIG_ENDIAN);
-        termCalc.position(idx[2], l + 2);
-        termCalc.write("" + (buf.getShort() & 0xFFFF));
-        buf.position(pos);
-
-        buf.order(ByteOrder.LITTLE_ENDIAN);
-        v = buf.getShort();
+        termCalc.write(v & 0xFFFF);
         termCalc.position(idx[1] + (v < 0 ? -1 : 0), l + 3);
-        termCalc.write("" + v);
+        termCalc.write(v);
         buf.position(pos);
 
         buf.order(ByteOrder.BIG_ENDIAN);
         v = buf.getShort();
+        termCalc.position(idx[2], l + 2);
+        termCalc.write(v & 0xFFFF);
         termCalc.position(idx[2] + (v < 0 ? -1 : 0), l + 3);
-        termCalc.write("" + v);
+        termCalc.write(v);
         buf.position(pos);
 
+        // int
+        
         buf.order(ByteOrder.LITTLE_ENDIAN);
+        v = buf.getInt();
         termCalc.position(idx[1], l + 4);
-        termCalc.write("" + ((long) buf.getInt() & 0xFFFFFFFFL));
-        buf.position(pos);
-
-        buf.order(ByteOrder.BIG_ENDIAN);
-        termCalc.position(idx[2], l + 4);
-        termCalc.write("" + ((long) buf.getInt() & 0xFFFFFFFFL));
-        buf.position(pos);
-
-        buf.order(ByteOrder.LITTLE_ENDIAN);
-        v = buf.getInt();
+        termCalc.write(v & 0xFFFFFFFFL);
         termCalc.position(idx[1] + (v < 0 ? -1 : 0), l + 5);
-        termCalc.write("" + v);
+        termCalc.write(v);
         buf.position(pos);
 
         buf.order(ByteOrder.BIG_ENDIAN);
         v = buf.getInt();
+        termCalc.position(idx[2], l + 4);
+        termCalc.write(v & 0xFFFFFFFFL);
         termCalc.position(idx[2] + (v < 0 ? -1 : 0), l + 5);
-        termCalc.write("" + v);
+        termCalc.write(v);
         buf.position(pos);
     }
 

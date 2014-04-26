@@ -107,11 +107,19 @@ public class Terminal extends Component {
     public void position(int x, int y) {
         caret.setLocation(x, y);
     }
+    
+    public void write(Object o) {
+        write(String.valueOf(o));
+    }
 
     public void write(String text) {
         char[] chars = text.toCharArray();
+        int idx;
         for (int i = 0; i < chars.length; i++) {
-            charBuf[(caret.x + i) + (caret.y * w)] = chars[i];
+            idx = (caret.x + i) + (caret.y * w);
+            if (idx >= 0 && idx < charBuf.length) {
+                charBuf[idx] = chars[i];
+            }
         }
     }
 
