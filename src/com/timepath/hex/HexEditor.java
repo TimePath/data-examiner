@@ -2,6 +2,7 @@ package com.timepath.hex;
 
 import com.timepath.curses.Multiplexer;
 import com.timepath.curses.Terminal;
+import com.timepath.io.BitBuffer;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -41,7 +42,8 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
 
     private static final Logger LOG = Logger.getLogger(HexEditor.class.getName());
 
-    protected ByteBuffer sourceBuf, buf;
+    protected BitBuffer buf;
+    protected ByteBuffer sourceBuf;
     protected long caretLocation;
     protected int cols = 16;
     protected int eof;
@@ -52,8 +54,9 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
     protected int rows = 16;
     protected boolean selecting;
     private final List<Selection> tags = new LinkedList<Selection>();
-    protected final Terminal termData, termCalc, termHeader, termLines, termText;
+    protected final Terminal termData, termText, termLines, termHeader, termShift, termCalc;
     protected final transient VetoableChangeSupport vetoableChangeSupport = new java.beans.VetoableChangeSupport(this);
+    private int bitShift = 0;
 
     public HexEditor() {
         termData = new Terminal(cols * 3, rows);
@@ -76,9 +79,13 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         Arrays.fill(termLines.fgBuf, Color.GREEN);
         Arrays.fill(termLines.bgBuf, Color.DARK_GRAY);
 
+        termShift = new Terminal(1, 1);
+        Arrays.fill(termShift.fgBuf, Color.CYAN);
+        Arrays.fill(termShift.bgBuf, Color.BLACK);
+
         this.setBackground(Color.BLACK);
 
-        super.add(termData, termText, termLines, termHeader, termCalc);
+        super.add(termData, termText, termLines, termHeader, termShift, termCalc);
 
         this.addKeyListener(this);
         this.addMouseMotionListener(this);
@@ -125,6 +132,9 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
     public void update() {
         updateRows();
 
+        termShift.position(0, 0);
+        termShift.write(bitShift);
+
         updateData();
         try {
             updateStats();
@@ -160,7 +170,7 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         if (buf == null) {
             return;
         }
-        buf.position(0);
+        buf.position(0, bitShift);
         int i = 0;
         byte b[] = new byte[cols];
         while (buf.hasRemaining()) {
@@ -195,7 +205,7 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
             return;
         }
 
-        buf.position(pos);
+        buf.position(pos, bitShift);
         pos = buf.position();
 
         int[] idx = {0, 6, 18};
@@ -222,7 +232,7 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         termCalc.write(v & 0xFF);
         termCalc.position(idx[1] + (v < 0 ? -1 : 0), l + 1);
         termCalc.write(v);
-        buf.position(pos);
+        buf.position(pos, bitShift);
 
         // short
         buf.order(ByteOrder.LITTLE_ENDIAN);
@@ -231,7 +241,7 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         termCalc.write(v & 0xFFFF);
         termCalc.position(idx[1] + (v < 0 ? -1 : 0), l + 3);
         termCalc.write(v);
-        buf.position(pos);
+        buf.position(pos, bitShift);
 
         buf.order(ByteOrder.BIG_ENDIAN);
         v = buf.getShort();
@@ -239,7 +249,7 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         termCalc.write(v & 0xFFFF);
         termCalc.position(idx[2] + (v < 0 ? -1 : 0), l + 3);
         termCalc.write(v);
-        buf.position(pos);
+        buf.position(pos, bitShift);
 
         // int
         buf.order(ByteOrder.LITTLE_ENDIAN);
@@ -248,7 +258,7 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         termCalc.write(v & 0xFFFFFFFFL);
         termCalc.position(idx[1] + (v < 0 ? -1 : 0), l + 5);
         termCalc.write(v);
-        buf.position(pos);
+        buf.position(pos, bitShift);
 
         buf.order(ByteOrder.BIG_ENDIAN);
         v = buf.getInt();
@@ -256,7 +266,7 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         termCalc.write(v & 0xFFFFFFFFL);
         termCalc.position(idx[2] + (v < 0 ? -1 : 0), l + 5);
         termCalc.write(v);
-        buf.position(pos);
+        buf.position(pos, bitShift);
     }
 
     @Override
@@ -385,7 +395,16 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
     @Override
     public void mouseWheelMoved(MouseWheelEvent e) {
         if (e.getScrollType() == MouseWheelEvent.WHEEL_UNIT_SCROLL) {
-            skip(e.getUnitsToScroll() * cols);
+            if (e.isControlDown()) {
+                if (e.getWheelRotation() > 0) {
+                    bitShift += 1;
+                } else if (e.getWheelRotation() < 0) {
+                    bitShift += 7;
+                }
+                bitShift %= 8;
+            } else {
+                skip(e.getUnitsToScroll() * cols);
+            }
             update();
             repaint();
         }
@@ -398,14 +417,16 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
                 sourceRAF.seek(seek & 0xFFFFFFFFFFFFFFFFL);
                 byte[] array = new byte[(int) Math.min(cols * rows, sourceRAF.length() - seek)];
                 sourceRAF.read(array);
-                buf = ByteBuffer.wrap(array);
+                buf = new BitBuffer(ByteBuffer.wrap(array));
+                buf.position(0, bitShift);
                 offset = seek;
             } catch (IOException ex) {
                 LOG.log(Level.SEVERE, null, ex);
             }
         } else if (sourceBuf != null) {
             sourceBuf.position((int) seek);
-            buf = Utils.getSlice(sourceBuf);
+            buf = new BitBuffer(Utils.getSlice(sourceBuf));
+            buf.position(0, bitShift);
             offset = seek;
         }
     }
@@ -585,9 +606,9 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
     public void setData(ByteBuffer buf) {
         reset();
         this.sourceBuf = buf;
-        this.buf = buf;
+        this.buf = new BitBuffer(buf);
         if (buf != null) {
-            this.eof = buf.capacity() - 1;
+            this.eof = this.buf.capacity() - 1;
         }
         seek(0);
         update();
