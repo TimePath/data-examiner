@@ -570,10 +570,12 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
     public void setData(RandomAccessFile rf) {
         reset();
         this.sourceRAF = rf;
-        try {
-            this.eof = (int) rf.length() - 1;
-        } catch (IOException ex) {
-            LOG.log(Level.SEVERE, null, ex);
+        if (rf != null) {
+            try {
+                this.eof = (int) rf.length() - 1;
+            } catch (IOException ex) {
+                LOG.log(Level.SEVERE, null, ex);
+            }
         }
         seek(0);
         update();
@@ -584,7 +586,9 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         reset();
         this.sourceBuf = buf;
         this.buf = buf;
-        this.eof = buf.capacity() - 1;
+        if (buf != null) {
+            this.eof = buf.capacity() - 1;
+        }
         seek(0);
         update();
         repaint();
