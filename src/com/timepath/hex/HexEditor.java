@@ -427,7 +427,7 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
     }
 
     protected void seek(long seek) {
-        seek = Math.max(Math.min(seek, eof), 0);
+        seek = Math.max(Math.min(seek, eof - (eof % cols)), 0);
         if (sourceRAF != null) {
             try {
                 sourceRAF.seek(seek & 0xFFFFFFFFFFFFFFFFL);
@@ -622,8 +622,8 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
     public void setData(ByteBuffer buf) {
         reset();
         this.sourceBuf = buf;
-        this.buf = new BitBuffer(buf);
         if (buf != null) {
+            this.buf = new BitBuffer(buf);
             this.eof = this.buf.capacity() - 1;
         }
         seek(0);
