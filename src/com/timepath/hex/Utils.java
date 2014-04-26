@@ -12,13 +12,9 @@ public class Utils {
 
     private static final Logger LOG = Logger.getLogger(Utils.class.getName());
 
-    public static String displayChar(int b) {
-        char c = (char) b;
-        boolean valid = !Character.isWhitespace(c) && !Character.isISOControl(c);
-        if (!valid) {
-            c = '.';
-        }
-        return "" + c;
+    public static String displayChar(int c) {
+        return String.valueOf(Character.isWhitespace(c)
+                || Character.isISOControl(c) ? '.' : (char) c);
     }
 
     public static RandomAccessFile mapFile(File f) throws IOException {
@@ -72,15 +68,15 @@ public class Utils {
         byte[] byt = new byte[buf.limit()];
         buf.get(byt);
         buf.position(originalPosition);
-        return hex(byt);
+        return hexFormat(byt);
     }
 
-    public static String hex(byte[] a) {
-        StringBuilder sb = new StringBuilder();
+    public static String hexFormat(byte[] a) {
+        StringBuilder sb = new StringBuilder(a.length * 3);
         for (byte b : a) {
-            sb.append(String.format("%02x", b & 0xff)).append(" ");
+            sb.append(String.format("%02x ", b & 0xFF));
         }
-        return sb.toString().toUpperCase().trim();
+        return sb.toString().toUpperCase();
     }
 
     public static ByteBuffer getSlice(ByteBuffer source) {
