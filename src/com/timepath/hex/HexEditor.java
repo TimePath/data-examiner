@@ -352,22 +352,7 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
     @Override
     public void mouseDragged(MouseEvent e) {
         if (SwingUtilities.isLeftMouseButton(e)) {
-            int c;
-            if ((c = termData.viewToCell(e.getPoint())) >= 0) {
-                int i = (c + 1) / 3;
-                try {
-                    this.setCaretLocation(i + offset);
-                } catch (PropertyVetoException pve) {
-                }
-            }
-            if ((c = termText.viewToCell(e.getPoint())) >= 0) {
-                try {
-                    this.setCaretLocation(c + offset);
-                } catch (PropertyVetoException pve) {
-                }
-            }
-            update();
-            repaint();
+            mousePressed(e);
         }
     }
 
@@ -385,16 +370,18 @@ public class HexEditor extends Multiplexer implements KeyListener, MouseMotionLi
         if (SwingUtilities.isLeftMouseButton(e)) {
             int c;
             if ((c = termData.viewToCell(e.getPoint())) >= 0) {
-                int i = (c + 1) / 3;
-                try {
-                    this.setCaretLocation(i + offset);
-                } catch (PropertyVetoException ex) {
+                if ((c + 1) % (cols * 3) != 0) {
+                    int i = (c + 1) / 3;
+                    try {
+                        this.setCaretLocation(i + offset);
+                    } catch (PropertyVetoException pve) {
+                    }
                 }
             }
             if ((c = termText.viewToCell(e.getPoint())) >= 0) {
                 try {
                     this.setCaretLocation(c + offset);
-                } catch (PropertyVetoException ex) {
+                } catch (PropertyVetoException pve) {
                 }
             }
             update();
