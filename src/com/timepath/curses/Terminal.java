@@ -31,14 +31,15 @@ public class Terminal extends JComponent {
 
     public static final int FONT_SIZE = 12;
 
-    public Font f = new Font(Font.MONOSPACED, Font.PLAIN, (int) Math.round(FONT_SIZE * Toolkit.getDefaultToolkit().getScreenResolution() / 72.0)); // Java2D = 72 DPI
+    /**
+     * Java2D assumes 72 DPI.
+     */
+    public Font f = new Font(Font.MONOSPACED, Font.PLAIN, (int) Math.round(FONT_SIZE * Toolkit.getDefaultToolkit().getScreenResolution() / 72.0));
     public FontMetrics fm = this.getFontMetrics(f);
 
     protected Terminal() {
         super();
-        int ascent = fm.getMaxAscent();
-        int descent = fm.getMaxDescent();
-        m = new Dimension(fm.getMaxAdvance(), ascent + descent);
+        m = new Dimension(fm.stringWidth(" "), fm.getHeight() - fm.getLeading());
     }
 
     public Terminal(int w, int h) {
