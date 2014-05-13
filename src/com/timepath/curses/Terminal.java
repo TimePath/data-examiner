@@ -1,55 +1,44 @@
 package com.timepath.curses;
 
-import static com.timepath.curses.Terminal.FONT_SIZE;
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.FontMetrics;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.Point;
-import java.awt.Rectangle;
-import java.awt.RenderingHints;
-import java.awt.Toolkit;
+import javax.swing.*;
+import java.awt.*;
 import java.awt.geom.AffineTransform;
 import java.util.Arrays;
 import java.util.logging.Logger;
-import javax.swing.JComponent;
 
 @SuppressWarnings("serial")
 public class Terminal extends JComponent {
 
-    private static final Logger LOG = Logger.getLogger(Terminal.class.getName());
-
-    public int xPos, yPos;
-    public int w, h;
-    public Color[] bgBuf, fgBuf;
-    public char[] charBuf;
-    public Dimension m;
-
-    public Point caret = new Point(0, 0);
-
-    public static final int FONT_SIZE = 12;
-
+    private static final Logger      LOG         = Logger.getLogger(Terminal.class.getName());
+    private static final int         FONT_SIZE   = 12;
     /**
      * Java2D assumes 72 DPI.
      */
-    public Font f = new Font(Font.MONOSPACED, Font.PLAIN, (int) Math.round(FONT_SIZE * Toolkit.getDefaultToolkit().getScreenResolution() / 72.0));
-    public FontMetrics fm = this.getFontMetrics(f);
-
-    protected Terminal() {
-        super();
-        m = new Dimension(fm.stringWidth(" "), fm.getHeight() - fm.getLeading());
-    }
+    private              Font        termFont    = new Font(Font.MONOSPACED,
+                                                            Font.PLAIN,
+                                                            (int) Math.round(( FONT_SIZE * Toolkit.getDefaultToolkit()
+                                                                                                  .getScreenResolution() ) / 72.0)
+    );
+    private              FontMetrics fontMetrics = getFontMetrics(termFont);
+    public int xPos, yPos;
+    public Color[] bgBuf, fgBuf;
+    protected Dimension metrics;
+    int termWidth, termHeight;
+    char[] charBuf;
+    private Point caret = new Point(0, 0);
 
     public Terminal(int w, int h) {
         this();
-        this.w = w;
-        this.h = h;
+        termWidth = w;
+        termHeight = h;
         charBuf = new char[w * h];
         bgBuf = new Color[w * h];
         fgBuf = new Color[w * h];
         clear();
+    }
+
+    Terminal() {
+        metrics = new Dimension(fontMetrics.stringWidth(" "), fontMetrics.getHeight() - fontMetrics.getLeading());
     }
 
     public void clear() {
@@ -59,11 +48,38 @@ public class Terminal extends JComponent {
     }
 
     @Override
+    public void paint(Graphics g) {
+        Graphics2D g2 = (Graphics2D) g;
+        Color oldColor = g2.getColor();
+        AffineTransform oldAt = g2.getTransform();
+        AffineTransform newAt = new AffineTransform();
+        newAt.translate(xPos * metrics.width, yPos * metrics.height);
+        g2.transform(newAt);
+        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_GASP);
+        g2.setFont(termFont);
+        for(int y = 0; y < termHeight; y++) {
+            for(int x = 0; x < termWidth; x++) {
+                Rectangle r = new Rectangle(x * metrics.width, y * metrics.height, metrics.width, metrics.height);
+                g2.setColor(bgBuf[x + ( y * termWidth )]);
+                g2.fillRect(r.x, r.y, r.width, r.height);
+                g2.setColor(fgBuf[x + ( y * termWidth )]);
+                char character;
+                if(( character = charBuf[x + ( y * termWidth )] ) == 0) {
+                    continue;
+                }
+                g2.drawString(String.valueOf(character), r.x, r.y + fontMetrics.getAscent());
+            }
+        }
+        g2.setTransform(oldAt);
+        g2.setColor(oldColor);
+    }
+
+    @Override
     public Dimension getPreferredSize() {
-        if (m == null) {
+        if(metrics == null) {
             return super.getPreferredSize();
         }
-        return new Dimension(w * m.width, h * m.height);
+        return new Dimension(termWidth * metrics.width, termHeight * metrics.height);
     }
 
     @Override
@@ -71,74 +87,39 @@ public class Terminal extends JComponent {
         return getPreferredSize();
     }
 
-    @Override
-    public void paint(Graphics graphics) {
-        Graphics2D g = (Graphics2D) graphics;
-
-        Color oldColor = g.getColor();
-        AffineTransform oldAt = g.getTransform();
-        AffineTransform newAt = new AffineTransform();
-        newAt.translate(xPos * m.width, yPos * m.height);
-        g.transform(newAt);
-
-        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_GASP);
-        g.setFont(f);
-
-        char character;
-        for (int y = 0; y < h; y++) {
-            for (int x = 0; x < w; x++) {
-                Rectangle r = new Rectangle(x * m.width, y * m.height, m.width, m.height);
-                g.setColor(bgBuf[x + y * w]);
-                g.fillRect(r.x, r.y, r.width, r.height);
-                g.setColor(fgBuf[x + y * w]);
-                if ((character = charBuf[x + y * w]) == 0) {
-                    continue;
-                }
-                g.drawString(String.valueOf(character), r.x, r.y + fm.getAscent());
-            }
-        }
-
-        g.setTransform(oldAt);
-        g.setColor(oldColor);
-    }
-
     public void position(int x, int y) {
         caret.setLocation(x, y);
     }
-    
-    public void write(Object o) {
-        write(String.valueOf(o));
-    }
 
-    public void write(String text) {
+    public void write(Object o) {
+        String text = String.valueOf(o);
         char[] chars = text.toCharArray();
-        int idx;
-        for (int i = 0; i < chars.length; i++) {
-            idx = (caret.x + i) + (caret.y * w);
-            if (idx >= 0 && idx < charBuf.length) {
+        for(int i = 0; i < chars.length; i++) {
+            int idx = caret.x + i + ( caret.y * termWidth );
+            if(( idx >= 0 ) && ( idx < charBuf.length )) {
                 charBuf[idx] = chars[i];
             }
         }
     }
 
     public Point cellToView(long ptr) {
-        long x = ptr % w;
-        long y = ptr / w;
-        Point p = new Point((int) (x * m.width), (int) (y * m.height));
-        p.translate(xPos * m.width, yPos * m.height);
+        long x = ptr % termWidth;
+        long y = ptr / termWidth;
+        Point p = new Point((int) ( x * metrics.width ), (int) ( y * metrics.height ));
+        p.translate(xPos * metrics.width, yPos * metrics.height);
         return p;
     }
 
     public int viewToCell(Point p) {
-        p.translate(-xPos * m.width, -yPos * m.height);
-        if (p.x < 0 || p.x >= w * m.width) {
+        p.translate(-xPos * metrics.width, -yPos * metrics.height);
+        if(( p.x < 0 ) || ( p.x >= ( termWidth * metrics.width ) )) {
             return -1;
         }
-        if (p.y < 0 || p.y >= h * m.height) {
+        if(( p.y < 0 ) || ( p.y >= ( termHeight * metrics.height ) )) {
             return -1;
         }
-        int x = p.x / m.width;
-        int y = p.y / m.height;
-        return (w * y) + x;
+        int x = p.x / metrics.width;
+        int y = p.y / metrics.height;
+        return ( termWidth * y ) + x;
     }
 }
