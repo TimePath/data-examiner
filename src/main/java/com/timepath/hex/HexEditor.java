@@ -117,11 +117,9 @@ public class HexEditor extends Multiplexer
         termHeader.write(sb.substring(1));
     }
 
-    protected void skip(long delta) {
-        seek(offset + delta);
-    }
+    public void skip(long delta) { seek(offset + delta); }
 
-    protected void seek(long seek) {
+    public void seek(long seek) {
         seek = Math.max(Math.min(seek, limit - ( limit % cols )), 0);
         if(sourceRAF != null) {
             try {
@@ -180,9 +178,7 @@ public class HexEditor extends Multiplexer
      */
     public void setMarkLocation(long markLocation) throws PropertyVetoException {
         long oldMarkLocation = this.markLocation;
-        if(oldMarkLocation == markLocation) {
-            return;
-        }
+        if(oldMarkLocation == markLocation) return;
         vetoableChangeSupport.fireVetoableChange(PROP_MARKLOCATION, oldMarkLocation, markLocation);
         this.markLocation = markLocation;
         propertyChangeSupport.firePropertyChange(PROP_MARKLOCATION, oldMarkLocation, markLocation);
@@ -267,9 +263,7 @@ public class HexEditor extends Multiplexer
      */
     public void setCaretLocation(long caretLocation) throws PropertyVetoException {
         long oldCaretLocation = this.caretLocation;
-        if(oldCaretLocation == caretLocation) {
-            return;
-        }
+        if(oldCaretLocation == caretLocation) return;
         vetoableChangeSupport.fireVetoableChange(PROP_CARETLOCATION, oldCaretLocation, caretLocation);
         this.caretLocation = caretLocation;
         propertyChangeSupport.firePropertyChange(PROP_CARETLOCATION, oldCaretLocation, caretLocation);
@@ -335,9 +329,7 @@ public class HexEditor extends Multiplexer
     protected void updateData() {
         termData.clear();
         termText.clear();
-        if(bitBuffer == null) {
-            return;
-        }
+        if(bitBuffer == null) return;
         bitBuffer.position(0, bitShift);
         int row = 0;
         byte[] bytes = new byte[cols];
@@ -346,7 +338,7 @@ public class HexEditor extends Multiplexer
             bitBuffer.get(bytes, 0, read);
             StringBuilder sb = new StringBuilder(read * 3);
             for(int i = 0; i < read; i++) {
-                sb.append(String.format(" %02X", bytes[i] & 0xFF & 0xFFFFF));
+                sb.append(String.format(" %02X", bytes[i] & 0xFF));
             }
             termData.position(0, row);
             termData.write(sb.substring(1));
@@ -356,9 +348,7 @@ public class HexEditor extends Multiplexer
             }
             termText.position(0, row);
             termText.write(sb2.toString());
-            if(++row >= rows) {
-                break;
-            }
+            if(++row >= rows) break;
         }
     }
 
@@ -369,9 +359,7 @@ public class HexEditor extends Multiplexer
     protected void updateStats() {
         int pos = (int) ( caretLocation - offset );
         termCalc.clear();
-        if(( bitBuffer == null ) || ( pos > bitBuffer.limit() ) || ( pos < 0 )) {
-            return;
-        }
+        if(( bitBuffer == null ) || ( pos > bitBuffer.limit() ) || ( pos < 0 )) return;
         bitBuffer.position(pos, bitShift);
         byte[] temp = new byte[Math.min(bitBuffer.remaining(), 4)];
         bitBuffer.get(temp);
@@ -435,9 +423,7 @@ public class HexEditor extends Multiplexer
         termCalc.write(value);
     }
 
-    protected String binaryDump(long l) {
-        return String.format("%8s", Long.toBinaryString(l)).replace(' ', '0');
-    }
+    protected String binaryDump(long l) { return String.format("%8s", Long.toBinaryString(l)).replace(' ', '0'); }
 
     @Override
     public void mouseReleased(MouseEvent e) { }
@@ -449,11 +435,12 @@ public class HexEditor extends Multiplexer
     public void mouseExited(MouseEvent e) { }
 
     public void setBitShift(int bitShift) {
-        if(( bitShift < 0 ) || ( bitShift >= 8 )) {
+        if(( bitShift < 0 ) || ( bitShift >= 8 )) { // Shifting off current byte
             try {
                 setCaretLocation(caretLocation + Math.round(Math.signum(bitShift)));
             } catch(PropertyVetoException ignored) {
             }
+            // Bring back into acceptable range
             bitShift += 8;
             bitShift %= 8;
         }
@@ -478,8 +465,8 @@ public class HexEditor extends Multiplexer
 
     @Override
     public void paint(Graphics g) {
+        super.paint(g);
         Graphics2D g2 = (Graphics2D) g;
-        super.paint(g2);
         for(int i = 0; i < ( tags.size() + 1 ); i++) {
             Selection sel = ( i == tags.size() ) ? new Selection(markLocation, caretLocation, Color.RED) : tags.get(i);
             g2.setColor(sel.getColor());
