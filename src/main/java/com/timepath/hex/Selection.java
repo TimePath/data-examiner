@@ -6,15 +6,17 @@ import java.util.logging.Logger;
 public class Selection {
 
     private static final Logger LOG = Logger.getLogger(Selection.class.getName());
-    private long  mark;
-    private long  caret;
+    private long mark;
+    private long caret;
     private Color color;
 
     Selection() {
     }
 
     public Selection(long mark, long caret, Color color) {
-        this.mark = mark; this.caret = caret; this.color = color;
+        this.mark = mark;
+        this.caret = caret;
+        this.color = color;
     }
 
     /**
@@ -25,8 +27,7 @@ public class Selection {
     }
 
     /**
-     * @param mark
-     *         the mark to set
+     * @param mark the mark to set
      */
     public void setMark(long mark) {
         this.mark = mark;
@@ -40,8 +41,7 @@ public class Selection {
     }
 
     /**
-     * @param caret
-     *         the caret to set
+     * @param caret the caret to set
      */
     public void setCaret(long caret) {
         this.caret = caret;
@@ -55,8 +55,7 @@ public class Selection {
     }
 
     /**
-     * @param color
-     *         the color to set
+     * @param color the color to set
      */
     public void setColor(Color color) {
         this.color = color;

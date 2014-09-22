@@ -12,8 +12,8 @@ import java.util.logging.Logger;
 @SuppressWarnings("serial")
 public class Multiplexer extends Terminal {
 
-    private static final Logger               LOG   = Logger.getLogger(Multiplexer.class.getName());
-    private final        Collection<Terminal> terms = new LinkedList<>();
+    private static final Logger LOG = Logger.getLogger(Multiplexer.class.getName());
+    private final Collection<Terminal> terms = new LinkedList<>();
 
     public Multiplexer() {
     }
@@ -29,7 +29,7 @@ public class Multiplexer extends Terminal {
     }
 
     protected void add(Terminal... args) {
-        for(Terminal t : args) {
+        for (Terminal t : args) {
             terms.add(t);
             termWidth = Math.max(t.xPos + t.termWidth, termWidth);
             termHeight = Math.max(t.yPos + t.termHeight, termHeight);
@@ -41,7 +41,7 @@ public class Multiplexer extends Terminal {
         Graphics2D g2 = (Graphics2D) g;
         g2.setColor(getBackground());
         g2.fillRect(0, 0, termWidth * metrics.width, termHeight * metrics.height);
-        for(Terminal t : terms) {
+        for (Terminal t : terms) {
             t.paint(g2);
         }
     }

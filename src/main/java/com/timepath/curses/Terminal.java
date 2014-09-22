@@ -9,17 +9,17 @@ import java.util.logging.Logger;
 @SuppressWarnings("serial")
 public class Terminal extends JComponent {
 
-    private static final Logger      LOG         = Logger.getLogger(Terminal.class.getName());
-    private static final int         FONT_SIZE   = 12;
+    private static final Logger LOG = Logger.getLogger(Terminal.class.getName());
+    private static final int FONT_SIZE = 12;
     /**
      * Java2D assumes 72 DPI.
      */
-    private              Font        termFont    = new Font(Font.MONOSPACED,
-                                                            Font.PLAIN,
-                                                            (int) Math.round(( FONT_SIZE * Toolkit.getDefaultToolkit()
-                                                                                                  .getScreenResolution() ) / 72.0)
+    private Font termFont = new Font(Font.MONOSPACED,
+            Font.PLAIN,
+            (int) Math.round((FONT_SIZE * Toolkit.getDefaultToolkit()
+                    .getScreenResolution()) / 72.0)
     );
-    private              FontMetrics fontMetrics = getFontMetrics(termFont);
+    private FontMetrics fontMetrics = getFontMetrics(termFont);
     public int xPos, yPos;
     public Color[] bgBuf, fgBuf;
     protected Dimension metrics;
@@ -57,14 +57,14 @@ public class Terminal extends JComponent {
         g2.transform(newAt);
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_GASP);
         g2.setFont(termFont);
-        for(int y = 0; y < termHeight; y++) {
-            for(int x = 0; x < termWidth; x++) {
+        for (int y = 0; y < termHeight; y++) {
+            for (int x = 0; x < termWidth; x++) {
                 Rectangle r = new Rectangle(x * metrics.width, y * metrics.height, metrics.width, metrics.height);
-                g2.setColor(bgBuf[x + ( y * termWidth )]);
+                g2.setColor(bgBuf[x + (y * termWidth)]);
                 g2.fillRect(r.x, r.y, r.width, r.height);
-                g2.setColor(fgBuf[x + ( y * termWidth )]);
+                g2.setColor(fgBuf[x + (y * termWidth)]);
                 char character;
-                if(( character = charBuf[x + ( y * termWidth )] ) == 0) {
+                if ((character = charBuf[x + (y * termWidth)]) == 0) {
                     continue;
                 }
                 g2.drawString(String.valueOf(character), r.x, r.y + fontMetrics.getAscent());
@@ -76,7 +76,7 @@ public class Terminal extends JComponent {
 
     @Override
     public Dimension getPreferredSize() {
-        if(metrics == null) {
+        if (metrics == null) {
             return super.getPreferredSize();
         }
         return new Dimension(termWidth * metrics.width, termHeight * metrics.height);
@@ -94,9 +94,9 @@ public class Terminal extends JComponent {
     public void write(Object o) {
         String text = String.valueOf(o);
         char[] chars = text.toCharArray();
-        for(int i = 0; i < chars.length; i++) {
-            int idx = caret.x + i + ( caret.y * termWidth );
-            if(( idx >= 0 ) && ( idx < charBuf.length )) {
+        for (int i = 0; i < chars.length; i++) {
+            int idx = caret.x + i + (caret.y * termWidth);
+            if ((idx >= 0) && (idx < charBuf.length)) {
                 charBuf[idx] = chars[i];
             }
         }
@@ -105,21 +105,21 @@ public class Terminal extends JComponent {
     public Point cellToView(long ptr) {
         long x = ptr % termWidth;
         long y = ptr / termWidth;
-        Point p = new Point((int) ( x * metrics.width ), (int) ( y * metrics.height ));
+        Point p = new Point((int) (x * metrics.width), (int) (y * metrics.height));
         p.translate(xPos * metrics.width, yPos * metrics.height);
         return p;
     }
 
     public int viewToCell(Point p) {
         p.translate(-xPos * metrics.width, -yPos * metrics.height);
-        if(( p.x < 0 ) || ( p.x >= ( termWidth * metrics.width ) )) {
+        if ((p.x < 0) || (p.x >= (termWidth * metrics.width))) {
             return -1;
         }
-        if(( p.y < 0 ) || ( p.y >= ( termHeight * metrics.height ) )) {
+        if ((p.y < 0) || (p.y >= (termHeight * metrics.height))) {
             return -1;
         }
         int x = p.x / metrics.width;
         int y = p.y / metrics.height;
-        return ( termWidth * y ) + x;
+        return (termWidth * y) + x;
     }
 }

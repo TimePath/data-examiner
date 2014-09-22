@@ -64,24 +64,33 @@ public class Main extends JFrame {
         GroupLayout layout = new GroupLayout(getContentPane());
         this.getContentPane().setLayout(layout);
         layout.setHorizontalGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
-                                        .addComponent(jTabbedPane1, GroupLayout.DEFAULT_SIZE, 400, Short.MAX_VALUE));
+                .addComponent(jTabbedPane1, GroupLayout.DEFAULT_SIZE, 400, Short.MAX_VALUE));
         layout.setVerticalGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
-                                      .addComponent(jTabbedPane1, GroupLayout.DEFAULT_SIZE, 279, Short.MAX_VALUE));
+                .addComponent(jTabbedPane1, GroupLayout.DEFAULT_SIZE, 279, Short.MAX_VALUE));
         this.pack();
+    }
+
+    public static void main(String[] args) {
+        EventQueue.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                new Main().setVisible(true);
+            }
+        });
     }
 
     private void choose() {
         NativeFileChooser fc = new NativeFileChooser();
         try {
             File[] fs = fc.choose();
-            if(fs == null) return;
+            if (fs == null) return;
             File file = fs[0];
             try {
                 createTab(file.getName()).setData(HexEditor.mapFile(file));
-            } catch(FileNotFoundException ex) {
+            } catch (FileNotFoundException ex) {
                 LOG.log(Level.SEVERE, null, ex);
             }
-        } catch(IOException ex) {
+        } catch (IOException ex) {
             LOG.log(Level.SEVERE, null, ex);
         }
     }
@@ -92,14 +101,5 @@ public class Main extends JFrame {
         t.requestFocusInWindow();
         pack();
         return t;
-    }
-
-    public static void main(String[] args) {
-        EventQueue.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                new Main().setVisible(true);
-            }
-        });
     }
 }
