@@ -1,5 +1,6 @@
 package com.timepath.hex;
 
+import com.timepath.DataUtils;
 import com.timepath.curses.Multiplexer;
 import com.timepath.curses.Terminal;
 import com.timepath.io.BitBuffer;
@@ -139,24 +140,10 @@ public class HexEditor extends Multiplexer
             }
         } else if (sourceBuf != null) {
             sourceBuf.position((int) seek);
-            bitBuffer = new BitBuffer(getSlice(sourceBuf));
+            bitBuffer = new BitBuffer(DataUtils.getSlice(sourceBuf, sourceBuf.remaining()));
             bitBuffer.position(0, bitShift);
             offset = seek;
         }
-    }
-
-    protected ByteBuffer getSlice(ByteBuffer source) {
-        return getSlice(source, source.remaining());
-    }
-
-    protected ByteBuffer getSlice(ByteBuffer source, int length) {
-        int originalLimit = source.limit();
-        source.limit(source.position() + length);
-        ByteBuffer sub = source.slice();
-        source.position(source.limit());
-        source.limit(originalLimit);
-        sub.order(ByteOrder.LITTLE_ENDIAN);
-        return sub;
     }
 
     protected void reset() {
