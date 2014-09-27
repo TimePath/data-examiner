@@ -1,5 +1,7 @@
 package com.timepath.curses;
 
+import org.jetbrains.annotations.NotNull;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.AffineTransform;
@@ -14,6 +16,7 @@ public class Terminal extends JComponent {
     /**
      * Java2D assumes 72 DPI.
      */
+    @NotNull
     private Font termFont = new Font(Font.MONOSPACED,
             Font.PLAIN,
             (int) Math.round((FONT_SIZE * Toolkit.getDefaultToolkit()
@@ -25,6 +28,7 @@ public class Terminal extends JComponent {
     protected Dimension metrics;
     int termWidth, termHeight;
     char[] charBuf;
+    @NotNull
     private Point caret = new Point(0, 0);
 
     public Terminal(int w, int h) {
@@ -49,17 +53,17 @@ public class Terminal extends JComponent {
 
     @Override
     public void paint(Graphics g) {
-        Graphics2D g2 = (Graphics2D) g;
+        @NotNull Graphics2D g2 = (Graphics2D) g;
         Color oldColor = g2.getColor();
         AffineTransform oldAt = g2.getTransform();
-        AffineTransform newAt = new AffineTransform();
+        @NotNull AffineTransform newAt = new AffineTransform();
         newAt.translate(xPos * metrics.width, yPos * metrics.height);
         g2.transform(newAt);
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_GASP);
         g2.setFont(termFont);
         for (int y = 0; y < termHeight; y++) {
             for (int x = 0; x < termWidth; x++) {
-                Rectangle r = new Rectangle(x * metrics.width, y * metrics.height, metrics.width, metrics.height);
+                @NotNull Rectangle r = new Rectangle(x * metrics.width, y * metrics.height, metrics.width, metrics.height);
                 g2.setColor(bgBuf[x + (y * termWidth)]);
                 g2.fillRect(r.x, r.y, r.width, r.height);
                 g2.setColor(fgBuf[x + (y * termWidth)]);
@@ -93,7 +97,7 @@ public class Terminal extends JComponent {
 
     public void write(Object o) {
         String text = String.valueOf(o);
-        char[] chars = text.toCharArray();
+        @NotNull char[] chars = text.toCharArray();
         for (int i = 0; i < chars.length; i++) {
             int idx = caret.x + i + (caret.y * termWidth);
             if ((idx >= 0) && (idx < charBuf.length)) {
@@ -102,15 +106,16 @@ public class Terminal extends JComponent {
         }
     }
 
+    @NotNull
     public Point cellToView(long ptr) {
         long x = ptr % termWidth;
         long y = ptr / termWidth;
-        Point p = new Point((int) (x * metrics.width), (int) (y * metrics.height));
+        @NotNull Point p = new Point((int) (x * metrics.width), (int) (y * metrics.height));
         p.translate(xPos * metrics.width, yPos * metrics.height);
         return p;
     }
 
-    public int viewToCell(Point p) {
+    public int viewToCell(@NotNull Point p) {
         p.translate(-xPos * metrics.width, -yPos * metrics.height);
         if ((p.x < 0) || (p.x >= (termWidth * metrics.width))) {
             return -1;

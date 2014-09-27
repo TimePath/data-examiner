@@ -4,6 +4,8 @@ import com.timepath.DataUtils;
 import com.timepath.curses.Multiplexer;
 import com.timepath.curses.Terminal;
 import com.timepath.io.BitBuffer;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.awt.*;
@@ -29,21 +31,32 @@ public class HexEditor extends Multiplexer
     protected static final String PROP_MARKLOCATION = "PROP_MARKLOCATION";
     private static final Logger LOG = Logger.getLogger(HexEditor.class.getName());
     protected final List<Selection> tags = new LinkedList<>();
+    @NotNull
     protected final Terminal termData;
+    @NotNull
     protected final Terminal termText;
+    @NotNull
     protected final Terminal termLines;
+    @NotNull
     protected final Terminal termHeader;
+    @NotNull
     protected final Terminal termShift;
+    @NotNull
     protected final Terminal termCalc;
+    @NotNull
     protected PropertyChangeSupport propertyChangeSupport = new PropertyChangeSupport(this);
+    @NotNull
     protected VetoableChangeSupport vetoableChangeSupport = new VetoableChangeSupport(this);
+    @Nullable
     protected BitBuffer bitBuffer;
+    @Nullable
     protected ByteBuffer sourceBuf;
     protected long caretLocation;
     protected int cols = 16;
     protected int limit;
     protected long markLocation;
     protected long offset;
+    @Nullable
     protected RandomAccessFile sourceRAF;
     protected int rows = 16;
     @SuppressWarnings("BooleanVariableAlwaysNegated")
@@ -77,7 +90,7 @@ public class HexEditor extends Multiplexer
         addMouseWheelListener(this);
         vetoableChangeSupport.addVetoableChangeListener(PROP_CARETLOCATION, new VetoableChangeListener() {
             @Override
-            public void vetoableChange(PropertyChangeEvent evt) throws PropertyVetoException {
+            public void vetoableChange(@NotNull PropertyChangeEvent evt) throws PropertyVetoException {
                 long v = (Long) evt.getNewValue();
                 if ((v < 0) || (v > limit)) {
                     throw new PropertyVetoException("Caret would be out of bounds", evt);
@@ -86,7 +99,7 @@ public class HexEditor extends Multiplexer
         });
         propertyChangeSupport.addPropertyChangeListener(PROP_CARETLOCATION, new PropertyChangeListener() {
             @Override
-            public void propertyChange(PropertyChangeEvent evt) {
+            public void propertyChange(@NotNull PropertyChangeEvent evt) {
                 long newPos = (Long) evt.getNewValue();
                 if (newPos < offset) { // on previous page
                     skip(-(cols * rows));
@@ -106,6 +119,7 @@ public class HexEditor extends Multiplexer
         reset();
     }
 
+    @NotNull
     public static RandomAccessFile mapFile(File file) throws FileNotFoundException {
         return new RandomAccessFile(file, "rw");
     }
@@ -113,7 +127,7 @@ public class HexEditor extends Multiplexer
     protected void initColumns() {
         Arrays.fill(termHeader.bgBuf, Color.WHITE);
         Arrays.fill(termHeader.fgBuf, Color.BLACK);
-        StringBuilder sb = new StringBuilder(cols * 3);
+        @NotNull StringBuilder sb = new StringBuilder(cols * 3);
         for (int i = 0; i < cols; i++) {
             sb.append(String.format(" %02X", i & 0xFF));
         }
@@ -130,7 +144,7 @@ public class HexEditor extends Multiplexer
         if (sourceRAF != null) {
             try {
                 sourceRAF.seek(seek);
-                byte[] array = new byte[(int) Math.min(cols * rows, sourceRAF.length() - seek)];
+                @NotNull byte[] array = new byte[(int) Math.min(cols * rows, sourceRAF.length() - seek)];
                 sourceRAF.read(array);
                 bitBuffer = new BitBuffer(ByteBuffer.wrap(array));
                 bitBuffer.position(0, bitShift);
@@ -175,7 +189,7 @@ public class HexEditor extends Multiplexer
     }
 
     @Override
-    public void keyPressed(KeyEvent e) {
+    public void keyPressed(@NotNull KeyEvent e) {
         try {
             boolean update = true;
             switch (e.getKeyCode()) {
@@ -229,7 +243,7 @@ public class HexEditor extends Multiplexer
     }
 
     @Override
-    public void keyReleased(KeyEvent e) {
+    public void keyReleased(@NotNull KeyEvent e) {
         if (e.getKeyCode() == KeyEvent.VK_SHIFT) {
             selecting = false;
         }
@@ -255,7 +269,7 @@ public class HexEditor extends Multiplexer
     }
 
     @Override
-    public void mouseDragged(MouseEvent e) {
+    public void mouseDragged(@NotNull MouseEvent e) {
         if (SwingUtilities.isLeftMouseButton(e)) {
             mousePressed(e);
         }
@@ -270,7 +284,7 @@ public class HexEditor extends Multiplexer
     }
 
     @Override
-    public void mousePressed(MouseEvent e) {
+    public void mousePressed(@NotNull MouseEvent e) {
         requestFocusInWindow();
         if (SwingUtilities.isLeftMouseButton(e)) {
             int cell;
@@ -319,17 +333,17 @@ public class HexEditor extends Multiplexer
         if (bitBuffer == null) return;
         bitBuffer.position(0, bitShift);
         int row = 0;
-        byte[] bytes = new byte[cols];
+        @NotNull byte[] bytes = new byte[cols];
         while (bitBuffer.hasRemaining()) {
             int read = Math.min(bitBuffer.remaining(), bytes.length);
             bitBuffer.get(bytes, 0, read);
-            StringBuilder sb = new StringBuilder(read * 3);
+            @NotNull StringBuilder sb = new StringBuilder(read * 3);
             for (int i = 0; i < read; i++) {
                 sb.append(String.format(" %02X", bytes[i] & 0xFF));
             }
             termData.position(0, row);
             termData.write(sb.substring(1));
-            StringBuilder sb2 = new StringBuilder(read);
+            @NotNull StringBuilder sb2 = new StringBuilder(read);
             for (int i = 0; i < read; i++) {
                 sb2.append(displayChar(bytes[i] & 0xFF));
             }
@@ -339,6 +353,7 @@ public class HexEditor extends Multiplexer
         }
     }
 
+    @NotNull
     protected String displayChar(int i) {
         return String.valueOf((Character.isWhitespace(i) || Character.isISOControl(i)) ? '.' : (char) i);
     }
@@ -348,11 +363,11 @@ public class HexEditor extends Multiplexer
         termCalc.clear();
         if ((bitBuffer == null) || (pos > bitBuffer.limit()) || (pos < 0)) return;
         bitBuffer.position(pos, bitShift);
-        byte[] temp = new byte[Math.min(bitBuffer.remaining(), 4)];
+        @NotNull byte[] temp = new byte[Math.min(bitBuffer.remaining(), 4)];
         bitBuffer.get(temp);
         bitBuffer.position(pos, bitShift);
         ByteBuffer calcBuf = ByteBuffer.wrap(temp);
-        int[] idx = {0, 6, 18};
+        @NotNull int[] idx = {0, 6, 18};
         int yOff = 0;
         termCalc.position(idx[0], yOff);
         termCalc.write("   8");
@@ -410,6 +425,7 @@ public class HexEditor extends Multiplexer
         termCalc.write(value);
     }
 
+    @NotNull
     protected String binaryDump(long l) {
         return String.format("%8s", Long.toBinaryString(l)).replace(' ', '0');
     }
@@ -440,7 +456,7 @@ public class HexEditor extends Multiplexer
     }
 
     @Override
-    public void mouseWheelMoved(MouseWheelEvent e) {
+    public void mouseWheelMoved(@NotNull MouseWheelEvent e) {
         if (e.getScrollType() == MouseWheelEvent.WHEEL_UNIT_SCROLL) {
             if (e.isControlDown()) {
                 if (e.getWheelRotation() > 0) {
@@ -458,12 +474,12 @@ public class HexEditor extends Multiplexer
     @Override
     public void paint(Graphics g) {
         super.paint(g);
-        Graphics2D g2 = (Graphics2D) g;
+        @NotNull Graphics2D g2 = (Graphics2D) g;
         for (int i = 0; i < (tags.size() + 1); i++) {
-            Selection sel = (i == tags.size()) ? new Selection(markLocation, caretLocation, Color.RED) : tags.get(i);
+            @NotNull Selection sel = (i == tags.size()) ? new Selection(markLocation, caretLocation, Color.RED) : tags.get(i);
             g2.setColor(sel.getColor());
             if (sel.getMark() >= 0) {
-                Polygon p = calcPolygon(termData, sel.getMark(), sel.getCaret(), 2, 1);
+                @NotNull Polygon p = calcPolygon(termData, sel.getMark(), sel.getCaret(), 2, 1);
                 g2.drawPolygon(p);
                 p = calcPolygon(termText, sel.getMark(), sel.getCaret(), 1, 0);
                 g2.drawPolygon(p);
@@ -483,13 +499,15 @@ public class HexEditor extends Multiplexer
         }
     }
 
-    protected Shape getCellRect(Terminal term, long address, int width, int spacing) {
+    @NotNull
+    protected Shape getCellRect(@NotNull Terminal term, long address, int width, int spacing) {
         address -= offset;
-        Point p = term.cellToView(address * (width + spacing));
+        @NotNull Point p = term.cellToView(address * (width + spacing));
         return new Rectangle(p.x, p.y, metrics.width * width, metrics.height);
     }
 
-    protected Polygon calcPolygon(Terminal term, long markIdx, long caretIdx, int width, int spacing) {
+    @NotNull
+    protected Polygon calcPolygon(@NotNull Terminal term, long markIdx, long caretIdx, int width, int spacing) {
         caretIdx -= offset;
         long caretRow = caretIdx / cols;
         if (caretIdx < 0) {
@@ -497,7 +515,7 @@ public class HexEditor extends Multiplexer
         } else if (caretIdx > (cols * rows)) {
             caretIdx = cols * rows - 1;
         }
-        Point caretPos = term.cellToView(caretIdx * (width + spacing));
+        @NotNull Point caretPos = term.cellToView(caretIdx * (width + spacing));
         caretPos.translate(-term.xPos * metrics.width, -term.yPos * metrics.height);
         markIdx -= offset;
         long markRow = markIdx / cols;
@@ -506,9 +524,9 @@ public class HexEditor extends Multiplexer
         } else if (markIdx > (cols * rows)) {
             markIdx = cols * rows - 1;
         }
-        Point markPos = term.cellToView(markIdx * (width + spacing));
+        @NotNull Point markPos = term.cellToView(markIdx * (width + spacing));
         markPos.translate(-term.xPos * metrics.width, -term.yPos * metrics.height);
-        Point rel = new Point((int) (caretIdx - markIdx), (int) (caretRow - markRow));
+        @NotNull Point rel = new Point((int) (caretIdx - markIdx), (int) (caretRow - markRow));
         if (rel.x >= 0) { // further right
             caretPos.x += metrics.width * width;
         } else {
@@ -519,7 +537,7 @@ public class HexEditor extends Multiplexer
         } else {
             markPos.y += metrics.height;
         }
-        Polygon p = new Polygon();
+        @NotNull Polygon p = new Polygon();
         p.addPoint(markPos.x, markPos.y);
         if (rel.y > 0) {
             p.addPoint(((cols * (width + spacing)) - spacing) * metrics.width, markPos.y);
@@ -548,7 +566,7 @@ public class HexEditor extends Multiplexer
         return p;
     }
 
-    public void setData(RandomAccessFile rf) {
+    public void setData(@Nullable RandomAccessFile rf) {
         reset();
         sourceRAF = rf;
         if (rf != null) {
@@ -562,7 +580,7 @@ public class HexEditor extends Multiplexer
         update();
     }
 
-    public void setData(ByteBuffer buf) {
+    public void setData(@Nullable ByteBuffer buf) {
         reset();
         sourceBuf = buf;
         if (buf != null) {

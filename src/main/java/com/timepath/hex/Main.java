@@ -2,6 +2,8 @@ package com.timepath.hex;
 
 import com.timepath.io.BitBuffer;
 import com.timepath.plaf.x.filechooser.NativeFileChooser;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.awt.*;
@@ -45,15 +47,15 @@ public class Main extends JFrame {
                 addActionListener(new ActionListener() {
                     @Override
                     public void actionPerformed(ActionEvent e) {
-                        byte[] bytes = {0x21, 0x7b, (byte) 0xbb, 0x73, 0x00, 0x00};
+                        @NotNull byte[] bytes = {0x21, 0x7b, (byte) 0xbb, 0x73, 0x00, 0x00};
                         int n = 3;
                         ByteBuffer buf = ByteBuffer.allocate(bytes.length);
                         buf.put(bytes);
-                        BitBuffer bb = new BitBuffer(buf);
+                        @NotNull BitBuffer bb = new BitBuffer(buf);
                         buf.rewind();
                         bb.getBits(n);
-                        String expect = bb.getString();
-                        HexEditor tab = createTab(expect + ">>" + n);
+                        @NotNull String expect = bb.getString();
+                        @NotNull HexEditor tab = createTab(expect + ">>" + n);
                         tab.setData(buf);
                         tab.setBitShift(3);
                         tab.update();
@@ -61,7 +63,7 @@ public class Main extends JFrame {
                 });
             }});
         }});
-        GroupLayout layout = new GroupLayout(getContentPane());
+        @NotNull GroupLayout layout = new GroupLayout(getContentPane());
         this.getContentPane().setLayout(layout);
         layout.setHorizontalGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
                 .addComponent(jTabbedPane1, GroupLayout.DEFAULT_SIZE, 400, Short.MAX_VALUE));
@@ -80,9 +82,9 @@ public class Main extends JFrame {
     }
 
     private void choose() {
-        NativeFileChooser fc = new NativeFileChooser();
+        @NotNull NativeFileChooser fc = new NativeFileChooser();
         try {
-            File[] fs = fc.choose();
+            @Nullable File[] fs = fc.choose();
             if (fs == null) return;
             File file = fs[0];
             try {
@@ -95,8 +97,9 @@ public class Main extends JFrame {
         }
     }
 
+    @NotNull
     private HexEditor createTab(String name) {
-        HexEditor t = new HexEditor();
+        @NotNull HexEditor t = new HexEditor();
         jTabbedPane1.add(name, t);
         t.requestFocusInWindow();
         pack();

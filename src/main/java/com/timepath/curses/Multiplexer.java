@@ -1,5 +1,7 @@
 package com.timepath.curses;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.awt.*;
 import java.util.Arrays;
 import java.util.Collection;
@@ -28,8 +30,8 @@ public class Multiplexer extends Terminal {
         Arrays.fill(fgBuf, Color.WHITE);
     }
 
-    protected void add(Terminal... args) {
-        for (Terminal t : args) {
+    protected void add(@NotNull Terminal... args) {
+        for (@NotNull Terminal t : args) {
             terms.add(t);
             termWidth = Math.max(t.xPos + t.termWidth, termWidth);
             termHeight = Math.max(t.yPos + t.termHeight, termHeight);
@@ -38,10 +40,10 @@ public class Multiplexer extends Terminal {
 
     @Override
     public void paint(Graphics g) {
-        Graphics2D g2 = (Graphics2D) g;
+        @NotNull Graphics2D g2 = (Graphics2D) g;
         g2.setColor(getBackground());
         g2.fillRect(0, 0, termWidth * metrics.width, termHeight * metrics.height);
-        for (Terminal t : terms) {
+        for (@NotNull Terminal t : terms) {
             t.paint(g2);
         }
     }
