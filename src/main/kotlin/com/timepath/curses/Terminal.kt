@@ -17,24 +17,13 @@ public open class Terminal(w: Int = 0, h: Int = 0) : JComponent() {
     private val fontMetrics = getFontMetrics(termFont)
     public var xPos: Int = 0
     public var yPos: Int = 0
-    public var bgBuf: Array<Color?>
-    public var fgBuf: Array<Color?>
-    protected var metrics: Dimension? = null
-    var termWidth: Int = 0
-    var termHeight: Int = 0
-    var charBuf: CharArray
+    public var bgBuf: Array<Color> = Array(w * h) { Color.BLACK }
+    public var fgBuf: Array<Color> = Array(w * h) { Color.WHITE }
+    protected var metrics: Dimension = Dimension(fontMetrics.stringWidth(" "), fontMetrics.getHeight() - fontMetrics.getLeading())
+    var termWidth: Int = w
+    var termHeight: Int = h
+    var charBuf: CharArray = CharArray(w * h)
     private val caret = Point(0, 0)
-
-            ;{
-        termWidth = w
-        termHeight = h
-        charBuf = CharArray(w * h)
-        bgBuf = arrayOfNulls<Color>(w * h)
-        fgBuf = arrayOfNulls<Color>(w * h)
-        clear()
-
-        metrics = Dimension(fontMetrics.stringWidth(" "), fontMetrics.getHeight() - fontMetrics.getLeading())
-    }
 
     public fun clear() {
         Arrays.fill(charBuf, 0.toChar())
@@ -42,46 +31,37 @@ public open class Terminal(w: Int = 0, h: Int = 0) : JComponent() {
         Arrays.fill(fgBuf, Color.WHITE)
     }
 
-    override fun paint(g: Graphics) {
-        val g2 = g as Graphics2D
-        val oldColor = g2.getColor()
-        val oldAt = g2.getTransform()
+    override fun paint(g: Graphics) = (g as Graphics2D).let { g ->
+        val oldColor = g.getColor()
+        val oldAt = g.getTransform()
         val newAt = AffineTransform()
-        newAt.translate((xPos * metrics!!.width).toDouble(), (yPos * metrics!!.height).toDouble())
-        g2.transform(newAt)
-        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_GASP)
-        g2.setFont(termFont)
-        for (y in 0..termHeight - 1) {
-            for (x in 0..termWidth - 1) {
-                val r = Rectangle(x * metrics!!.width, y * metrics!!.height, metrics!!.width, metrics!!.height)
-                g2.setColor(bgBuf[x + (y * termWidth)])
-                g2.fillRect(r.x, r.y, r.width, r.height)
-                g2.setColor(fgBuf[x + (y * termWidth)])
+        newAt.translate((xPos * metrics.width).toDouble(), (yPos * metrics.height).toDouble())
+        g.transform(newAt)
+        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_GASP)
+        g.setFont(termFont)
+        for (y in termHeight.indices) {
+            for (x in termWidth.indices) {
+                val px = x * metrics.width
+                val py = y * metrics.height
+                g.setColor(bgBuf[x + (y * termWidth)])
+                g.fillRect(px, py, metrics.width, metrics.height)
+                g.setColor(fgBuf[x + (y * termWidth)])
                 val character = charBuf[x + (y * termWidth)]
                 if (character.toInt() == 0) {
                     continue
                 }
-                g2.drawString(character.toString(), r.x, r.y + fontMetrics.getAscent())
+                g.drawString(character.toString(), px, py + fontMetrics.getAscent())
             }
         }
-        g2.setTransform(oldAt)
-        g2.setColor(oldColor)
+        g.setTransform(oldAt)
+        g.setColor(oldColor)
     }
 
-    override fun getPreferredSize(): Dimension {
-        if (metrics == null) {
-            return super.getPreferredSize()
-        }
-        return Dimension(termWidth * metrics!!.width, termHeight * metrics!!.height)
-    }
+    override fun getPreferredSize() = Dimension(termWidth * metrics.width, termHeight * metrics.height)
 
-    override fun getMinimumSize(): Dimension {
-        return getPreferredSize()
-    }
+    override fun getMinimumSize() = getPreferredSize()
 
-    public fun position(x: Int, y: Int) {
-        caret.setLocation(x, y)
-    }
+    public fun position(x: Int, y: Int): Unit = caret.setLocation(x, y)
 
     public fun write(o: Any) {
         val text = o.toString()
@@ -95,28 +75,28 @@ public open class Terminal(w: Int = 0, h: Int = 0) : JComponent() {
     }
 
     public fun cellToView(ptr: Long): Point {
-        val x = ptr % termWidth.toLong()
-        val y = ptr / termWidth.toLong()
-        val p = Point((x * metrics!!.width.toLong()).toInt(), (y * metrics!!.height.toLong()).toInt())
-        p.translate(xPos * metrics!!.width, yPos * metrics!!.height)
-        return p
+        val x = ptr % termWidth
+        val y = ptr / termWidth
+        return Point(
+                ((x * metrics.width) + (xPos * metrics.width)).toInt(),
+                ((y * metrics.height) + (yPos * metrics.height)).toInt()
+        )
     }
 
     public fun viewToCell(p: Point): Int {
-        p.translate(-xPos * metrics!!.width, -yPos * metrics!!.height)
-        if ((p.x < 0) || (p.x >= (termWidth * metrics!!.width))) {
+        p.translate(-xPos.times(metrics.width), -yPos * metrics.height)
+        if ((p.x < 0) || (p.x >= (termWidth * metrics.width))) {
             return -1
         }
-        if ((p.y < 0) || (p.y >= (termHeight * metrics!!.height))) {
+        if ((p.y < 0) || (p.y >= (termHeight * metrics.height))) {
             return -1
         }
-        val x = p.x / metrics!!.width
-        val y = p.y / metrics!!.height
+        val x = p.x / metrics.width
+        val y = p.y / metrics.height
         return (termWidth * y) + x
     }
 
     class object {
-
         private val LOG = Logger.getLogger(javaClass<Terminal>().getName())
         private val FONT_SIZE = 12
     }

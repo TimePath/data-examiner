@@ -20,116 +20,103 @@ import java.util.Arrays
 import java.util.LinkedList
 import java.util.logging.Level
 import java.util.logging.Logger
-import kotlin.properties.Delegates
+import com.timepath.util.BeanProperty
+import com.timepath.util.observe
 
 public data class Selection(var mark: Long, var caret: Long, var color: Color?)
 
 public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseListener, MouseWheelListener {
+    protected var cols: Int = 16
+    protected var rows: Int = 16
     protected val tags: MutableList<Selection> = LinkedList()
-    protected val termData: Terminal
-    protected val termText: Terminal
-    protected val termLines: Terminal
-    protected val termHeader: Terminal
-    protected val termShift: Terminal
-    protected val termCalc: Terminal
-    protected var propertyChangeSupport: PropertyChangeSupport = PropertyChangeSupport(this)
-    protected var vetoableChangeSupport: VetoableChangeSupport = VetoableChangeSupport(this)
+    protected val termData: Terminal = Terminal(cols * 3, rows).let {
+        it.xPos = 9
+        it.yPos = 1
+        it
+    }
+    protected val termText: Terminal = Terminal(cols, rows).let {
+        it.xPos = 9 + cols * 3
+        it.yPos = 1
+        it
+    }
+    protected val termLines: Terminal = Terminal(8, rows).let {
+        it.yPos = 1
+        Arrays.fill(it.fgBuf, Color.GREEN)
+        Arrays.fill(it.bgBuf, Color.DARK_GRAY)
+        it
+    }
+    protected val termHeader: Terminal = Terminal((3 * cols) - 1, 1).let {
+        it.xPos = 9
+        it
+    }
+    protected val termShift: Terminal = Terminal(1, 1).let {
+        Arrays.fill(it.fgBuf, Color.CYAN)
+        Arrays.fill(it.bgBuf, Color.BLACK)
+        it
+    }
+    protected val termCalc: Terminal = Terminal(54, 6).let {
+        it.yPos = 1 + rows + 1
+        it
+    }
+    protected val propertyChangeSupport: PropertyChangeSupport = PropertyChangeSupport(this)
+    protected val vetoableChangeSupport: VetoableChangeSupport = VetoableChangeSupport(this)
     protected var bitBuffer: BitBuffer? = null
     protected var sourceBuf: ByteBuffer? = null
-    var caretLocation: Long = 0
-        set(caretLocation) {
-            val oldCaretLocation = $caretLocation
-            if (oldCaretLocation == caretLocation) return
-            vetoableChangeSupport.fireVetoableChange(PROP_CARETLOCATION, oldCaretLocation, caretLocation)
-            $caretLocation = caretLocation
-            propertyChangeSupport.firePropertyChange(PROP_CARETLOCATION, oldCaretLocation, caretLocation)
-        }
-    protected var cols: Int = 16
-    protected var limit: Int = 0
-    public var markLocation: Long = 0
-        set(markLocation) {
-            val oldMarkLocation = $markLocation
-            if (oldMarkLocation == markLocation) return
-            vetoableChangeSupport.fireVetoableChange(PROP_MARKLOCATION, oldMarkLocation, markLocation)
-            $markLocation = markLocation
-            propertyChangeSupport.firePropertyChange(PROP_MARKLOCATION, oldMarkLocation, markLocation)
-        }
+    public var caretLocation: Long by BeanProperty(0L, propertyChangeSupport, vetoableChangeSupport)
+    protected var limit: Long = 0
+    public var markLocation: Long by BeanProperty(0L, propertyChangeSupport, vetoableChangeSupport)
     protected var offset: Long = 0
     protected var sourceRAF: RandomAccessFile? = null
-    protected var rows: Int = 16
     SuppressWarnings("BooleanVariableAlwaysNegated")
     protected var selecting: Boolean = false
     var bitShift: Int = 0
         set(value) {
-            var value = value
-            if ((value < 0) || (value >= 8)) {
+            var new = value
+            if ((new < 0) || (new >= 8)) {
                 // Shifting off current byte
                 try {
-                    caretLocation += Math.round(Math.signum(value.toFloat())).toLong()
+                    caretLocation += Math.round(Math.signum(new.toFloat())).toLong()
                 } catch (ignored: PropertyVetoException) {
                 }
-
                 // Bring back into acceptable range
-                value += 8
-                value %= 8
+                new += 8
+                new %= 8
             }
-            $bitShift = value
+            $bitShift = new
         }
 
     {
-        termData = Terminal(cols * 3, rows)
-        termData.xPos = 9
-        termData.yPos = 1
-        termText = Terminal(cols, rows)
-        termText.xPos = 9 + cols * 3
-        termText.yPos = 1
-        termCalc = Terminal(54, 6)
-        termCalc.yPos = 1 + rows + 1
-        termHeader = Terminal((3 * cols) - 1, 1)
-        termHeader.xPos = 9
         initColumns()
-        termLines = Terminal(8, rows)
-        termLines.yPos = 1
-        Arrays.fill(termLines.fgBuf, Color.GREEN)
-        Arrays.fill(termLines.bgBuf, Color.DARK_GRAY)
-        termShift = Terminal(1, 1)
-        Arrays.fill(termShift.fgBuf, Color.CYAN)
-        Arrays.fill(termShift.bgBuf, Color.BLACK)
         setBackground(Color.BLACK)
         add(termData, termText, termLines, termHeader, termShift, termCalc)
         addKeyListener(this)
         addMouseMotionListener(this)
         addMouseListener(this)
         addMouseWheelListener(this)
-        vetoableChangeSupport.addVetoableChangeListener(PROP_CARETLOCATION, object : VetoableChangeListener {
-            throws(javaClass<PropertyVetoException>())
-            override fun vetoableChange(evt: PropertyChangeEvent) {
-                val v = evt.getNewValue() as Long
-                if ((v < 0) || (v > limit)) {
-                    throw PropertyVetoException("Caret would be out of bounds", evt)
+        ::caretLocation.let {
+            it.observe(vetoableChangeSupport) {(old: Long, new: Long) ->
+                when {
+                    new !in 0..limit - 1 -> "Caret would be out of bounds"
+                    else -> null
                 }
             }
-        })
-        propertyChangeSupport.addPropertyChangeListener(PROP_CARETLOCATION, object : PropertyChangeListener {
-            override fun propertyChange(evt: PropertyChangeEvent) {
-                val newPos = evt.getNewValue() as Long
-                if (newPos < offset) {
+            it.observe(propertyChangeSupport) {(old: Long, new: Long) ->
+                if (new < offset) {
                     // on previous page
                     skip((-(cols * rows)).toLong())
-                } else if (newPos >= (offset + (cols * rows).toLong())) {
+                } else if (new >= (offset + (cols * rows).toLong())) {
                     // on next page
                     skip((cols * rows).toLong())
                 }
                 if (!selecting) {
                     try {
-                        markLocation = newPos
+                        markLocation = new
                     } catch (ex: PropertyVetoException) {
                         LOG.log(Level.SEVERE, null, ex)
                     }
-
                 }
             }
-        })
+        }
         setFocusable(true)
         reset()
     }
@@ -138,47 +125,44 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
         Arrays.fill(termHeader.bgBuf, Color.WHITE)
         Arrays.fill(termHeader.fgBuf, Color.BLACK)
         val sb = StringBuilder(cols * 3)
-        for (i in 0..cols - 1) {
-            sb.append(java.lang.String.format(" %02X", i and 255))
+        cols.indices.forEach {
+            sb.append(" %02X".format(it and 0xFF))
         }
         termHeader.position(0, 0)
         termHeader.write(sb.substring(1))
     }
 
-    public fun skip(delta: Long) {
-        seek(offset + delta)
-    }
+    public fun skip(delta: Long): Unit = seek(offset + delta)
 
     public fun seek(seek: Long) {
-        var seek = seek
-        seek = Math.max(Math.min(seek, (limit - (limit % cols)).toLong()), 0)
+        var tmp = seek
+        tmp = Math.max(Math.min(tmp, (limit - (limit % cols)).toLong()), 0)
         if (sourceRAF != null) {
             try {
-                sourceRAF!!.seek(seek)
-                val array = ByteArray(Math.min((cols * rows).toLong(), sourceRAF!!.length() - seek).toInt())
+                sourceRAF!!.seek(tmp)
+                val array = ByteArray(Math.min((cols * rows).toLong(), sourceRAF!!.length() - tmp).toInt())
                 sourceRAF!!.read(array)
                 bitBuffer = BitBuffer(ByteBuffer.wrap(array))
                 bitBuffer!!.position(0, bitShift)
-                offset = seek
+                offset = tmp
             } catch (ex: IOException) {
                 LOG.log(Level.SEVERE, null, ex)
             }
 
         } else if (sourceBuf != null) {
-            sourceBuf!!.position(seek.toInt())
+            sourceBuf!!.position(tmp.toInt())
             bitBuffer = BitBuffer(DataUtils.getSlice(sourceBuf, sourceBuf!!.remaining()))
             bitBuffer!!.position(0, bitShift)
-            offset = seek
+            offset = tmp
         }
     }
 
     protected fun reset() {
-        markLocation = (-1).toLong()
+        markLocation = -1L
         caretLocation = 0
     }
 
-    override fun keyTyped(e: KeyEvent) {
-    }
+    override fun keyTyped(e: KeyEvent) = Unit
 
     override fun keyPressed(e: KeyEvent) {
         try {
@@ -209,7 +193,6 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
         } catch (ex: PropertyVetoException) {
             LOG.log(Level.FINER, null, ex)
         }
-
     }
 
     override fun keyReleased(e: KeyEvent) {
@@ -224,17 +207,14 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
         }
     }
 
-    override fun mouseMoved(e: MouseEvent) {
-    }
+    override fun mouseMoved(e: MouseEvent) = Unit
 
-    override fun mouseClicked(e: MouseEvent) {
-    }
+    override fun mouseClicked(e: MouseEvent) = Unit
 
     override fun mousePressed(e: MouseEvent) {
         requestFocusInWindow()
         if (SwingUtilities.isLeftMouseButton(e)) {
-            var cell: Int
-            cell = termData.viewToCell(e.getPoint())
+            var cell = termData.viewToCell(e.getPoint())
             if (cell >= 0) {
                 if (((cell + 1) % (cols * 3)) != 0) {
                     val i = (cell + 1) / 3
@@ -242,7 +222,6 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
                         caretLocation = (offset + i.toLong())
                     } catch (ignored: PropertyVetoException) {
                     }
-
                 }
             }
             cell = termText.viewToCell(e.getPoint())
@@ -251,7 +230,6 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
                     caretLocation = (offset + cell.toLong())
                 } catch (ignored: PropertyVetoException) {
                 }
-
             }
             update()
         }
@@ -266,16 +244,13 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
             updateStats()
         } catch (ignored: BufferUnderflowException) {
         }
-
         repaint()
     }
 
-    protected fun updateRows() {
-        for (i in 0..rows - 1) {
-            val address = java.lang.String.format("%08X", (i * cols).toLong() + offset)
-            termLines.position(0, i)
-            termLines.write(address)
-        }
+    protected fun updateRows(): Unit = rows.indices.forEach {
+        val address = "%08X".format((it * cols).toLong() + offset)
+        termLines.position(0, it)
+        termLines.write(address)
     }
 
     protected fun updateData() {
@@ -286,17 +261,17 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
         var row = 0
         val bytes = ByteArray(cols)
         while (bitBuffer!!.hasRemaining()) {
-            val read = Math.min(bitBuffer!!.remaining(), bytes.size)
+            val read = Math.min(bitBuffer!!.remaining(), bytes.size())
             bitBuffer!!.get(bytes, 0, read)
             val sb = StringBuilder(read * 3)
             for (i in 0..read - 1) {
-                sb.append(java.lang.String.format(" %02X", bytes[i].toInt() and 255))
+                sb.append(" %02X".format(bytes[i].toInt() and 0xFF))
             }
             termData.position(0, row)
             termData.write(sb.substring(1))
             val sb2 = StringBuilder(read)
             for (i in 0..read - 1) {
-                sb2.append(displayChar(bytes[i].toInt() and 255))
+                sb2.append(displayChar((bytes[i].toInt() and 0xFF).toChar()))
             }
             termText.position(0, row)
             termText.write(sb2.toString())
@@ -304,18 +279,25 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
         }
     }
 
-    protected fun displayChar(i: Int): String {
-        return java.lang.String.valueOf(if ((Character.isWhitespace(i) || Character.isISOControl(i))) '.' else i.toChar())
+    protected fun displayChar(c: Char): Char = when {
+        c.isWhitespace(), c.isISOControl() -> '.'
+        else -> c
     }
 
     protected fun updateStats() {
         val pos = (caretLocation - offset).toInt()
         termCalc.clear()
-        if ((bitBuffer == null) || (pos > bitBuffer!!.limit()) || (pos < 0)) return
-        bitBuffer!!.position(pos, bitShift)
-        val temp = ByteArray(Math.min(bitBuffer!!.remaining(), 4))
-        bitBuffer!!.get(temp)
-        bitBuffer!!.position(pos, bitShift)
+        when {
+            bitBuffer == null,
+            pos > bitBuffer!!.limit(),
+            pos < 0
+            -> return
+        }
+        val buf = bitBuffer!!
+        buf.position(pos, bitShift)
+        val temp = ByteArray(Math.min(buf.remaining(), 4))
+        buf.get(temp)
+        buf.position(pos, bitShift)
         val calcBuf = ByteBuffer.wrap(temp)
         val idx = intArray(0, 6, 18)
         val yOff = 0
@@ -335,27 +317,27 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
         calcBuf.position(0)
         var value = calcBuf.get().toLong()
         termCalc.position(idx[1], yOff)
-        termCalc.write(value and 255)
+        termCalc.write(value and 0xFF)
         termCalc.position(idx[1] + (if ((value < 0)) -1 else 0), yOff + 1)
         termCalc.write(value)
         // binary
         for (i in temp.indices) {
             termCalc.position(idx[2] + (i * 9), yOff)
-            termCalc.write(StringBuilder(binaryDump((temp[i].toInt() and 255).toLong())))
+            termCalc.write(StringBuilder(binaryDump((temp[i].toInt() and 0xFF).toLong())))
         }
         // short
         calcBuf.position(0)
         calcBuf.order(ByteOrder.LITTLE_ENDIAN)
         value = calcBuf.getShort().toLong()
         termCalc.position(idx[1], yOff + 2)
-        termCalc.write(value and 65535)
+        termCalc.write(value and 0xFFFF)
         termCalc.position(idx[1] + (if ((value < 0)) -1 else 0), yOff + 3)
         termCalc.write(value)
         calcBuf.position(0)
         calcBuf.order(ByteOrder.BIG_ENDIAN)
         value = calcBuf.getShort().toLong()
         termCalc.position(idx[2], yOff + 2)
-        termCalc.write(value and 65535)
+        termCalc.write(value and 0xFFFF)
         termCalc.position(idx[2] + (if ((value < 0)) -1 else 0), yOff + 3)
         termCalc.write(value)
         // int
@@ -376,17 +358,14 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
     }
 
     protected fun binaryDump(l: Long): String {
-        return java.lang.String.format("%8s", java.lang.Long.toBinaryString(l)).replace(' ', '0')
+        return "%8s".format(java.lang.Long.toBinaryString(l)).replace(' ', '0')
     }
 
-    override fun mouseReleased(e: MouseEvent) {
-    }
+    override fun mouseReleased(e: MouseEvent) = Unit
 
-    override fun mouseEntered(e: MouseEvent) {
-    }
+    override fun mouseEntered(e: MouseEvent) = Unit
 
-    override fun mouseExited(e: MouseEvent) {
-    }
+    override fun mouseExited(e: MouseEvent) = Unit
 
     override fun mouseWheelMoved(e: MouseWheelEvent) {
         if (e.getScrollType() == MouseWheelEvent.WHEEL_UNIT_SCROLL) {
@@ -405,99 +384,100 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
 
     override fun paint(g: Graphics) {
         super<Multiplexer>.paint(g)
-        val g2 = g as Graphics2D
-        for (i in 0..(tags.size() + 1) - 1) {
-            val sel = if ((i == tags.size())) Selection(markLocation, caretLocation, Color.RED) else tags.get(i)
-            g2.setColor(sel.color)
-            if (sel.mark >= 0) {
-                var p = calcPolygon(termData, sel.mark, sel.caret, 2, 1)
-                g2.drawPolygon(p)
-                p = calcPolygon(termText, sel.mark, sel.caret, 1, 0)
-                g2.drawPolygon(p)
+        (g as Graphics2D).let { g ->
+            for (i in (tags.size() + 1).indices) {
+                val sel = if ((i == tags.size())) Selection(markLocation, caretLocation, Color.RED) else tags.get(i)
+                g.setColor(sel.color)
+                if (sel.mark >= 0) {
+                    g.drawPolygon(calcPolygon(termData, sel.mark, sel.caret, 2, 1))
+                    g.drawPolygon(calcPolygon(termText, sel.mark, sel.caret, 1, 0))
+                }
             }
-        }
-        val markLoc = markLocation
-        if ((markLoc >= offset) && (markLoc < (offset + (cols * rows).toLong()))) {
-            g2.setColor(Color.YELLOW)
-            g2.draw(getCellRect(termData, markLoc, 2, 1))
-            g2.draw(getCellRect(termText, markLoc, 1, 0))
-        }
-        val caretLoc = caretLocation
-        if ((caretLoc >= offset) && (caretLoc < (offset + (cols * rows).toLong()))) {
-            g2.setColor(Color.WHITE)
-            g2.draw(getCellRect(termData, caretLoc, 2, 1))
-            g2.draw(getCellRect(termText, caretLoc, 1, 0))
+            val markLoc = markLocation
+            if ((markLoc >= offset) && (markLoc < (offset + (cols * rows).toLong()))) {
+                g.setColor(Color.YELLOW)
+                g.draw(getCellRect(termData, markLoc, 2, 1))
+                g.draw(getCellRect(termText, markLoc, 1, 0))
+            }
+            val caretLoc = caretLocation
+            if ((caretLoc >= offset) && (caretLoc < (offset + (cols * rows).toLong()))) {
+                g.setColor(Color.WHITE)
+                g.draw(getCellRect(termData, caretLoc, 2, 1))
+                g.draw(getCellRect(termText, caretLoc, 1, 0))
+            }
         }
     }
 
     protected fun getCellRect(term: Terminal, address: Long, width: Int, spacing: Int): Shape {
-        var address = address
-        address -= offset
-        val p = term.cellToView(address * (width + spacing).toLong())
-        return Rectangle(p.x, p.y, metrics!!.width * width, metrics!!.height)
+        term.cellToView((address - offset) * (width + spacing).toLong()).let {
+            return Rectangle(it.x, it.y, metrics.width * width, metrics.height)
+        }
     }
 
     protected fun calcPolygon(term: Terminal, markIdx: Long, caretIdx: Long, width: Int, spacing: Int): Polygon {
-        var markIdx = markIdx
-        var caretIdx = caretIdx
-        caretIdx -= offset
+        var caretIdx = caretIdx - offset
         val caretRow = caretIdx / cols.toLong()
-        if (caretIdx < 0) {
-            caretIdx = 0
-        } else if (caretIdx > (cols * rows)) {
-            caretIdx = (cols * rows - 1).toLong()
+        caretIdx = when {
+            caretIdx < 0 -> 0
+            caretIdx > (cols * rows) -> (cols * rows - 1).toLong()
+            else -> caretIdx
         }
         val caretPos = term.cellToView(caretIdx * (width + spacing).toLong())
-        caretPos.translate(-term.xPos * metrics!!.width, -term.yPos * metrics!!.height)
-        markIdx -= offset
+        caretPos.translate(-term.xPos * metrics.width, -term.yPos * metrics.height)
+        var markIdx = markIdx - offset
         val markRow = markIdx / cols.toLong()
-        if (markIdx < 0) {
-            markIdx = 0
-        } else if (markIdx > (cols * rows)) {
-            markIdx = (cols * rows - 1).toLong()
+        markIdx = when {
+            markIdx < 0 -> 0
+            markIdx > (cols * rows) -> (cols * rows - 1).toLong()
+            else -> markIdx
         }
         val markPos = term.cellToView(markIdx * (width + spacing).toLong())
-        markPos.translate(-term.xPos * metrics!!.width, -term.yPos * metrics!!.height)
+        markPos.translate(-term.xPos * metrics.width, -term.yPos * metrics.height)
         val rel = Point((caretIdx - markIdx).toInt(), (caretRow - markRow).toInt())
-        if (rel.x >= 0) {
-            // further right
-            caretPos.x += metrics!!.width * width
-        } else {
-            markPos.x += metrics!!.width * width
+        when { // further right
+            rel.x >= 0 -> caretPos.x += metrics.width * width
+            else -> markPos.x += metrics.width * width
         }
-        if (rel.y >= 0) {
-            // further down
-            caretPos.y += metrics!!.height
-        } else {
-            markPos.y += metrics!!.height
+        when { // further down
+            rel.y >= 0 -> caretPos.y += metrics.height
+            else -> markPos.y += metrics.height
         }
-        val p = Polygon()
-        p.addPoint(markPos.x, markPos.y)
-        if (rel.y > 0) {
-            p.addPoint(((cols * (width + spacing)) - spacing) * metrics!!.width, markPos.y)
-            p.addPoint(((cols * (width + spacing)) - spacing) * metrics!!.width, caretPos.y - metrics!!.height)
-            p.addPoint(caretPos.x, caretPos.y - metrics!!.height)
-        } else if (rel.y < 0) {
-            p.addPoint(0, markPos.y)
-            p.addPoint(0, caretPos.y + metrics!!.height)
-            p.addPoint(caretPos.x, caretPos.y + metrics!!.height)
-        } else {
-            p.addPoint(caretPos.x, markPos.y)
+        with(Polygon()) {
+            addPoint(markPos.x, markPos.y)
+            when {
+                rel.y > 0 -> {
+                    addPoint(((cols * (width + spacing)) - spacing) * metrics.width, markPos.y)
+                    addPoint(((cols * (width + spacing)) - spacing) * metrics.width, caretPos.y - metrics.height)
+                    addPoint(caretPos.x, caretPos.y - metrics.height)
+                }
+                rel.y < 0 -> {
+                    addPoint(0, markPos.y)
+                    addPoint(0, caretPos.y + metrics.height)
+                    addPoint(caretPos.x, caretPos.y + metrics.height)
+                }
+                else -> {
+                    addPoint(caretPos.x, markPos.y)
+                }
+            }
+            addPoint(caretPos.x, caretPos.y)
+            when {
+                rel.y > 0 -> {
+                    addPoint(0, caretPos.y)
+                    addPoint(0, markPos.y + metrics.height)
+                    addPoint(markPos.x, markPos.y + metrics.height)
+                }
+                rel.y < 0 -> {
+                    addPoint(((cols * (width + spacing)) - spacing) * metrics.width, caretPos.y)
+                    addPoint(((cols * (width + spacing)) - spacing) * metrics.width, markPos.y - metrics.height)
+                    addPoint(markPos.x, markPos.y - metrics.height)
+                }
+                else -> {
+                    addPoint(markPos.x, caretPos.y)
+                }
+            }
+            translate(term.xPos * metrics.width, term.yPos * metrics.height)
+            return this
         }
-        p.addPoint(caretPos.x, caretPos.y)
-        if (rel.y > 0) {
-            p.addPoint(0, caretPos.y)
-            p.addPoint(0, markPos.y + metrics!!.height)
-            p.addPoint(markPos.x, markPos.y + metrics!!.height)
-        } else if (rel.y < 0) {
-            p.addPoint(((cols * (width + spacing)) - spacing) * metrics!!.width, caretPos.y)
-            p.addPoint(((cols * (width + spacing)) - spacing) * metrics!!.width, markPos.y - metrics!!.height)
-            p.addPoint(markPos.x, markPos.y - metrics!!.height)
-        } else {
-            p.addPoint(markPos.x, caretPos.y)
-        }
-        p.translate(term.xPos * metrics!!.width, term.yPos * metrics!!.height)
-        return p
     }
 
     public fun setData(rf: RandomAccessFile?) {
@@ -505,11 +485,10 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
         sourceRAF = rf
         if (rf != null) {
             try {
-                limit = rf.length().toInt() - 1
+                limit = (rf.length().toInt() - 1).toLong()
             } catch (ex: IOException) {
                 LOG.log(Level.SEVERE, null, ex)
             }
-
         }
         seek(0)
         update()
@@ -520,7 +499,7 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
         sourceBuf = buf
         if (buf != null) {
             bitBuffer = BitBuffer(buf)
-            limit = bitBuffer!!.capacity() - 1
+            limit = (bitBuffer!!.capacity() - 1).toLong()
         }
         seek(0)
         update()
@@ -528,8 +507,6 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
 
     class object {
 
-        protected val PROP_CARETLOCATION: String = "PROP_CARETLOCATION"
-        protected val PROP_MARKLOCATION: String = "PROP_MARKLOCATION"
         private val LOG = Logger.getLogger(javaClass<HexEditor>().getName())
 
         throws(javaClass<FileNotFoundException>())
