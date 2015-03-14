@@ -386,7 +386,7 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
         super<Multiplexer>.paint(g)
         (g as Graphics2D).let { g ->
             for (i in (tags.size() + 1).indices) {
-                val sel = if ((i == tags.size())) Selection(markLocation, caretLocation, Color.RED) else tags.get(i)
+                val sel = if ((i == tags.size())) Selection(markLocation, caretLocation, Color.RED) else tags[i]
                 g.setColor(sel.color)
                 if (sel.mark >= 0) {
                     g.drawPolygon(calcPolygon(termData, sel.mark, sel.caret, 2, 1))
