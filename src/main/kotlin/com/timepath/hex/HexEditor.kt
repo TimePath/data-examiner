@@ -264,13 +264,13 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
             val read = Math.min(bitBuffer!!.remaining(), bytes.size())
             bitBuffer!!.get(bytes, 0, read)
             val sb = StringBuilder(read * 3)
-            for (i in 0..read - 1) {
+            for (i in read.indices) {
                 sb.append(" %02X".format(bytes[i].toInt() and 0xFF))
             }
             termData.position(0, row)
             termData.write(sb.substring(1))
             val sb2 = StringBuilder(read)
-            for (i in 0..read - 1) {
+            for (i in read.indices) {
                 sb2.append(displayChar((bytes[i].toInt() and 0xFF).toChar()))
             }
             termText.position(0, row)
