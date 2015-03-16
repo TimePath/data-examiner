@@ -14,7 +14,6 @@ apply plugin: 'kotlin'
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 
-    compile project(':commons')
     compile project(':java-xplaf')
 }
 
@@ -22,7 +21,7 @@ if (!hasProperty('mainClass')) {
     ext.mainClass = 'com.timepath.hex.Main'
 }
 
-task run(dependsOn: ['build'], type: JavaExec) {
+task run(type: JavaExec, dependsOn: 'build') {
     main mainClass
     classpath += sourceSets.main.runtimeClasspath
 }
