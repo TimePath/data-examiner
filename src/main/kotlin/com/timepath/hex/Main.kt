@@ -44,7 +44,7 @@ public class Main private() : JFrame() {
                     buf.rewind()
                     bb.getBits(n)
                     val expect = bb.getString()
-                    val tab = createTab(expect + ">>" + n)
+                    val tab = createTab("$expect>>$n")
                     tab.setData(buf)
                     tab.bitShift = 3
                     tab.update()
