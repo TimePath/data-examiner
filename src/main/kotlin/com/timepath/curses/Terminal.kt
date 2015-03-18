@@ -1,34 +1,38 @@
 package com.timepath.curses
 
-
-import javax.swing.*
-import java.awt.*
+import javax.swing.JComponent
+import java.awt.Font
+import java.awt.Toolkit
+import java.awt.Color
+import java.awt.Dimension
+import java.awt.Point
+import java.awt.Graphics
+import java.awt.Graphics2D
 import java.awt.geom.AffineTransform
-import java.util.Arrays
-import java.util.logging.Logger
-
+import java.awt.RenderingHints
 
 public open class Terminal(w: Int = 0, h: Int = 0) : JComponent() {
 
-    /**
-     * Java2D assumes 72 DPI.
-     */
-    private val termFont = Font(Font.MONOSPACED, Font.PLAIN, Math.round((FONT_SIZE * Toolkit.getDefaultToolkit().getScreenResolution()).toDouble() / 72.0).toInt())
+    private val FONT_SIZE = 12
+    /** Java2D assumes 72 DPI. */
+    private val termFont = Font(Font.MONOSPACED, Font.PLAIN,
+            Math.round((FONT_SIZE * Toolkit.getDefaultToolkit().getScreenResolution()).toDouble() / 72.0).toInt())
     private val fontMetrics = getFontMetrics(termFont)
     public var xPos: Int = 0
     public var yPos: Int = 0
     public var bgBuf: Array<Color> = Array(w * h) { Color.BLACK }
     public var fgBuf: Array<Color> = Array(w * h) { Color.WHITE }
-    protected var metrics: Dimension = Dimension(fontMetrics.stringWidth(" "), fontMetrics.getHeight() - fontMetrics.getLeading())
+    protected var metrics: Dimension = Dimension(fontMetrics.stringWidth(" "),
+            fontMetrics.getHeight() - fontMetrics.getLeading())
     var termWidth: Int = w
     var termHeight: Int = h
     var charBuf: CharArray = CharArray(w * h)
     private val caret = Point(0, 0)
 
     public fun clear() {
-        Arrays.fill(charBuf, 0.toChar())
-        Arrays.fill(bgBuf, Color.BLACK)
-        Arrays.fill(fgBuf, Color.WHITE)
+        charBuf.fill(0.toChar())
+        bgBuf.fill(Color.BLACK)
+        fgBuf.fill(Color.WHITE)
     }
 
     override fun paint(g: Graphics) = (g as Graphics2D).let { g ->
@@ -63,14 +67,10 @@ public open class Terminal(w: Int = 0, h: Int = 0) : JComponent() {
 
     public fun position(x: Int, y: Int): Unit = caret.setLocation(x, y)
 
-    public fun write(o: Any) {
-        val text = o.toString()
-        val chars = text.toCharArray()
-        for (i in chars.indices) {
-            val idx = caret.x + i + (caret.y * termWidth)
-            if ((idx >= 0) && (idx < charBuf.size())) {
-                charBuf[idx] = chars[i]
-            }
+    public fun write(o: Any): Unit = o.toString().forEachIndexed { (i, c) ->
+        val idx = caret.x + i + (caret.y * termWidth)
+        if ((idx >= 0) && (idx < charBuf.size())) {
+            charBuf[idx] = c
         }
     }
 
@@ -96,8 +96,4 @@ public open class Terminal(w: Int = 0, h: Int = 0) : JComponent() {
         return (termWidth * y) + x
     }
 
-    class object {
-        private val LOG = Logger.getLogger(javaClass<Terminal>().getName())
-        private val FONT_SIZE = 12
-    }
 }

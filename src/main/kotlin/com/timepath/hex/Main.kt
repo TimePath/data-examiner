@@ -12,6 +12,7 @@ import java.nio.ByteBuffer
 import java.util.logging.Level
 import java.util.logging.Logger
 import kotlin.platform.platformStatic
+import java.io.RandomAccessFile
 
 /**
  * @author TimePath
@@ -64,7 +65,9 @@ public class Main private() : JFrame() {
         NativeFileChooser().choose()?.let {
             val file = it[0]
             try {
-                createTab(file.getName()).setData(HexEditor.mapFile(file))
+                createTab(file.getName()).let {
+                    it.setData(RandomAccessFile(file, "rw"))
+                }
             } catch (ex: FileNotFoundException) {
                 LOG.log(Level.SEVERE, null, ex)
             }

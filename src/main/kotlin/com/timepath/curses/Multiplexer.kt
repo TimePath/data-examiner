@@ -1,8 +1,7 @@
 package com.timepath.curses
 
-
-import java.awt.*
-import java.util.logging.Logger
+import java.awt.Graphics
+import java.awt.Graphics2D
 
 public open class Multiplexer(private val terms: MutableCollection<Terminal> = linkedListOf()) : Terminal() {
 
@@ -15,8 +14,6 @@ public open class Multiplexer(private val terms: MutableCollection<Terminal> = l
     override fun paint(g: Graphics) = (g as Graphics2D).let { g ->
         g.setColor(getBackground())
         g.fillRect(0, 0, termWidth * metrics.width, termHeight * metrics.height)
-        for (t in terms) {
-            t.paint(g)
-        }
+        terms.forEach { it.paint(g) }
     }
 }

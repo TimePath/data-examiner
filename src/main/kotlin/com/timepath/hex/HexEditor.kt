@@ -16,7 +16,6 @@ import java.io.RandomAccessFile
 import java.nio.BufferUnderflowException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.util.Arrays
 import java.util.LinkedList
 import java.util.logging.Level
 import java.util.logging.Logger
@@ -41,8 +40,8 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
     }
     protected val termLines: Terminal = Terminal(8, rows).let {
         it.yPos = 1
-        Arrays.fill(it.fgBuf, Color.GREEN)
-        Arrays.fill(it.bgBuf, Color.DARK_GRAY)
+        it.fgBuf.fill(Color.GREEN)
+        it.bgBuf.fill(Color.DARK_GRAY)
         it
     }
     protected val termHeader: Terminal = Terminal((3 * cols) - 1, 1).let {
@@ -50,8 +49,8 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
         it
     }
     protected val termShift: Terminal = Terminal(1, 1).let {
-        Arrays.fill(it.fgBuf, Color.CYAN)
-        Arrays.fill(it.bgBuf, Color.BLACK)
+        it.fgBuf.fill(Color.CYAN)
+        it.bgBuf.fill(Color.BLACK)
         it
     }
     protected val termCalc: Terminal = Terminal(54, 6).let {
@@ -67,7 +66,6 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
     public var markLocation: Long by BeanProperty(0L, propertyChangeSupport, vetoableChangeSupport)
     protected var offset: Long = 0
     protected var sourceRAF: RandomAccessFile? = null
-    SuppressWarnings("BooleanVariableAlwaysNegated")
     protected var selecting: Boolean = false
     var bitShift: Int = 0
         set(value) {
@@ -122,8 +120,8 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
     }
 
     protected fun initColumns() {
-        Arrays.fill(termHeader.bgBuf, Color.WHITE)
-        Arrays.fill(termHeader.fgBuf, Color.BLACK)
+        termHeader.bgBuf.fill(Color.WHITE)
+        termHeader.fgBuf.fill(Color.BLACK)
         val sb = StringBuilder(cols * 3)
         cols.indices.forEach {
             sb.append(" %02X".format(it and 0xFF))
@@ -135,20 +133,19 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
     public fun skip(delta: Long): Unit = seek(offset + delta)
 
     public fun seek(seek: Long) {
-        var tmp = seek
-        tmp = Math.max(Math.min(tmp, (limit - (limit % cols)).toLong()), 0)
+        var tmp = Math.max(Math.min(seek, (limit - (limit % cols)).toLong()), 0)
         if (sourceRAF != null) {
+            val raf = sourceRAF!!
             try {
-                sourceRAF!!.seek(tmp)
-                val array = ByteArray(Math.min((cols * rows).toLong(), sourceRAF!!.length() - tmp).toInt())
-                sourceRAF!!.read(array)
+                raf.seek(tmp)
+                val array = ByteArray(Math.min((cols * rows).toLong(), raf.length() - tmp).toInt())
+                raf.read(array)
                 bitBuffer = BitBuffer(ByteBuffer.wrap(array))
                 bitBuffer!!.position(0, bitShift)
                 offset = tmp
             } catch (ex: IOException) {
                 LOG.log(Level.SEVERE, null, ex)
             }
-
         } else if (sourceBuf != null) {
             sourceBuf!!.position(tmp.toInt())
             bitBuffer = BitBuffer(DataUtils.getSlice(sourceBuf, sourceBuf!!.remaining()))
@@ -166,7 +163,6 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
 
     override fun keyPressed(e: KeyEvent) {
         try {
-            var update = true
             when (e.getKeyCode()) {
                 KeyEvent.VK_UP -> caretLocation -= cols.toLong()
                 KeyEvent.VK_DOWN -> caretLocation = Math.min(caretLocation + cols.toLong(), limit.toLong())
@@ -187,18 +183,16 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
                 KeyEvent.VK_PAGE_DOWN -> skip(cols.toLong())
                 KeyEvent.VK_PAGE_UP -> skip((-cols).toLong())
                 KeyEvent.VK_ENTER -> tags.add(Selection(markLocation, caretLocation, Color.RED))
-                else -> update = false
+                else -> return
             }
-            if (update) update()
+            update()
         } catch (ex: PropertyVetoException) {
             LOG.log(Level.FINER, null, ex)
         }
     }
 
-    override fun keyReleased(e: KeyEvent) {
-        if (e.getKeyCode() == KeyEvent.VK_SHIFT) {
-            selecting = false
-        }
+    override fun keyReleased(e: KeyEvent): Unit = when (e.getKeyCode()) {
+        KeyEvent.VK_SHIFT -> selecting = false
     }
 
     override fun mouseDragged(e: MouseEvent) {
@@ -214,20 +208,20 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
     override fun mousePressed(e: MouseEvent) {
         requestFocusInWindow()
         if (SwingUtilities.isLeftMouseButton(e)) {
-            var cell = termData.viewToCell(e.getPoint())
-            if (cell >= 0) {
-                if (((cell + 1) % (cols * 3)) != 0) {
-                    val i = (cell + 1) / 3
+            val dataCell = termData.viewToCell(e.getPoint())
+            if (dataCell >= 0) {
+                if (((dataCell + 1) % (cols * 3)) != 0) {
+                    val i = (dataCell + 1) / 3
                     try {
                         caretLocation = (offset + i.toLong())
                     } catch (ignored: PropertyVetoException) {
                     }
                 }
             }
-            cell = termText.viewToCell(e.getPoint())
-            if (cell >= 0) {
+            val textCell = termText.viewToCell(e.getPoint())
+            if (textCell >= 0) {
                 try {
-                    caretLocation = (offset + cell.toLong())
+                    caretLocation = (offset + textCell.toLong())
                 } catch (ignored: PropertyVetoException) {
                 }
             }
@@ -248,39 +242,42 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
     }
 
     protected fun updateRows(): Unit = rows.indices.forEach {
-        val address = "%08X".format((it * cols).toLong() + offset)
         termLines.position(0, it)
-        termLines.write(address)
+        termLines.write("%08X".format((it * cols).toLong() + offset))
     }
 
     protected fun updateData() {
         termData.clear()
         termText.clear()
-        if (bitBuffer == null) return
-        bitBuffer!!.position(0, bitShift)
-        var row = 0
+        val bb = bitBuffer
+        if (bb == null) return
+        bb.position(0, bitShift)
         val bytes = ByteArray(cols)
-        while (bitBuffer!!.hasRemaining()) {
-            val read = Math.min(bitBuffer!!.remaining(), bytes.size())
-            bitBuffer!!.get(bytes, 0, read)
-            val sb = StringBuilder(read * 3)
-            for (i in read.indices) {
-                sb.append(" %02X".format(bytes[i].toInt() and 0xFF))
+        val sb = StringBuilder(bytes.size() * 3)
+        var row = -1
+        while (bb.hasRemaining() && ++row < rows) {
+            val read = Math.min(bb.remaining(), bytes.size())
+            bb.get(bytes, 0, read)
+
+            sb.setLength(0)
+            read.indices.forEach {
+                sb.append(((bytes[it].toInt() and 0xFF)).let { " %02X".format(it) })
             }
             termData.position(0, row)
             termData.write(sb.substring(1))
-            val sb2 = StringBuilder(read)
-            for (i in read.indices) {
-                sb2.append(displayChar((bytes[i].toInt() and 0xFF).toChar()))
+
+            sb.setLength(0)
+            read.indices.forEach {
+                sb.append((bytes[it].toInt() and 0xFF).let { displayChar(it.toChar()) })
             }
             termText.position(0, row)
-            termText.write(sb2.toString())
-            if (++row >= rows) break
+            termText.write(sb.toString())
         }
     }
 
     protected fun displayChar(c: Char): Char = when {
-        c.isWhitespace(), c.isISOControl() -> '.'
+        c.isWhitespace(),
+        c.isISOControl() -> '.'
         else -> c
     }
 
@@ -314,52 +311,60 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
         termCalc.position(idx[0], yOff + 5)
         termCalc.write("± 32")
         // byte
-        calcBuf.position(0)
-        var value = calcBuf.get().toLong()
-        termCalc.position(idx[1], yOff)
-        termCalc.write(value and 0xFF)
-        termCalc.position(idx[1] + (if ((value < 0)) -1 else 0), yOff + 1)
-        termCalc.write(value)
+        run {
+            calcBuf.position(0)
+            var value = calcBuf.get().toLong()
+            termCalc.position(idx[1], yOff)
+            termCalc.write(value and 0xFF)
+            termCalc.position(idx[1] + (if ((value < 0)) -1 else 0), yOff + 1)
+            termCalc.write(value)
+        }
         // binary
         for (i in temp.indices) {
             termCalc.position(idx[2] + (i * 9), yOff)
             termCalc.write(StringBuilder(binaryDump((temp[i].toInt() and 0xFF).toLong())))
         }
         // short
-        calcBuf.position(0)
-        calcBuf.order(ByteOrder.LITTLE_ENDIAN)
-        value = calcBuf.getShort().toLong()
-        termCalc.position(idx[1], yOff + 2)
-        termCalc.write(value and 0xFFFF)
-        termCalc.position(idx[1] + (if ((value < 0)) -1 else 0), yOff + 3)
-        termCalc.write(value)
-        calcBuf.position(0)
-        calcBuf.order(ByteOrder.BIG_ENDIAN)
-        value = calcBuf.getShort().toLong()
-        termCalc.position(idx[2], yOff + 2)
-        termCalc.write(value and 0xFFFF)
-        termCalc.position(idx[2] + (if ((value < 0)) -1 else 0), yOff + 3)
-        termCalc.write(value)
+        run {
+            calcBuf.position(0)
+            calcBuf.order(ByteOrder.LITTLE_ENDIAN)
+            val value = calcBuf.getShort().toLong()
+            termCalc.position(idx[1], yOff + 2)
+            termCalc.write(value and 0xFFFF)
+            termCalc.position(idx[1] + (if ((value < 0)) -1 else 0), yOff + 3)
+            termCalc.write(value)
+        }
+        run {
+            calcBuf.position(0)
+            calcBuf.order(ByteOrder.BIG_ENDIAN)
+            val value = calcBuf.getShort().toLong()
+            termCalc.position(idx[2], yOff + 2)
+            termCalc.write(value and 0xFFFF)
+            termCalc.position(idx[2] + (if ((value < 0)) -1 else 0), yOff + 3)
+            termCalc.write(value)
+        }
         // int
-        calcBuf.position(0)
-        calcBuf.order(ByteOrder.LITTLE_ENDIAN)
-        value = calcBuf.getInt().toLong()
-        termCalc.position(idx[1], yOff + 4)
-        termCalc.write(value and 0xFFFFFFFF)
-        termCalc.position(idx[1] + (if ((value < 0)) -1 else 0), yOff + 5)
-        termCalc.write(value)
-        calcBuf.position(0)
-        calcBuf.order(ByteOrder.BIG_ENDIAN)
-        value = calcBuf.getInt().toLong()
-        termCalc.position(idx[2], yOff + 4)
-        termCalc.write(value and 0xFFFFFFFF)
-        termCalc.position(idx[2] + (if ((value < 0)) -1 else 0), yOff + 5)
-        termCalc.write(value)
+        run {
+            calcBuf.position(0)
+            calcBuf.order(ByteOrder.LITTLE_ENDIAN)
+            val value = calcBuf.getInt().toLong()
+            termCalc.position(idx[1], yOff + 4)
+            termCalc.write(value and 0xFFFFFFFF)
+            termCalc.position(idx[1] + (if ((value < 0)) -1 else 0), yOff + 5)
+            termCalc.write(value)
+        }
+        run {
+            calcBuf.position(0)
+            calcBuf.order(ByteOrder.BIG_ENDIAN)
+            val value = calcBuf.getInt().toLong()
+            termCalc.position(idx[2], yOff + 4)
+            termCalc.write(value and 0xFFFFFFFF)
+            termCalc.position(idx[2] + (if ((value < 0)) -1 else 0), yOff + 5)
+            termCalc.write(value)
+        }
     }
 
-    protected fun binaryDump(l: Long): String {
-        return "%8s".format(java.lang.Long.toBinaryString(l)).replace(' ', '0')
-    }
+    protected fun binaryDump(l: Long): String = "%8s".format(java.lang.Long.toBinaryString(l)).replace(' ', '0')
 
     override fun mouseReleased(e: MouseEvent) = Unit
 
@@ -370,10 +375,11 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
     override fun mouseWheelMoved(e: MouseWheelEvent) {
         if (e.getScrollType() == MouseWheelEvent.WHEEL_UNIT_SCROLL) {
             if (e.isControlDown()) {
-                if (e.getWheelRotation() > 0) {
-                    bitShift++
-                } else if (e.getWheelRotation() < 0) {
-                    bitShift--
+                val rotation = e.getWheelRotation()
+                bitShift += when {
+                    rotation > 0 -> 1
+                    rotation < 0 -> -1
+                    else -> 0
                 }
             } else {
                 skip((e.getUnitsToScroll() * cols).toLong())
@@ -506,12 +512,6 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
     }
 
     class object {
-
         private val LOG = Logger.getLogger(javaClass<HexEditor>().getName())
-
-        throws(javaClass<FileNotFoundException>())
-        public fun mapFile(file: File): RandomAccessFile {
-            return RandomAccessFile(file, "rw")
-        }
     }
 }
