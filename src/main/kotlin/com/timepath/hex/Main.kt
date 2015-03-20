@@ -21,7 +21,7 @@ SuppressWarnings("serial")
 public class Main private() : JFrame() {
     private val jTabbedPane1: JTabbedPane
 
-    {
+    init {
         this.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
         jTabbedPane1 = JTabbedPane()
         setJMenuBar(with(JMenuBar()) {
@@ -83,7 +83,7 @@ public class Main private() : JFrame() {
         it
     }
 
-    class object {
+    companion object {
 
         private val LOG = Logger.getLogger(javaClass<Main>().getName())
 

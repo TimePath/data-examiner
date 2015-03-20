@@ -83,7 +83,7 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
             $bitShift = new
         }
 
-    {
+    init {
         initColumns()
         setBackground(Color.BLACK)
         add(termData, termText, termLines, termHeader, termShift, termCalc)
@@ -92,13 +92,13 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
         addMouseListener(this)
         addMouseWheelListener(this)
         ::caretLocation.let {
-            it.observe(vetoableChangeSupport) {(old: Long, new: Long) ->
+            it.observe(vetoableChangeSupport) { old: Long, new: Long ->
                 when {
                     new !in 0..limit - 1 -> "Caret would be out of bounds"
                     else -> null
                 }
             }
-            it.observe(propertyChangeSupport) {(old: Long, new: Long) ->
+            it.observe(propertyChangeSupport) { old: Long, new: Long ->
                 if (new < offset) {
                     // on previous page
                     skip((-(cols * rows)).toLong())
@@ -511,7 +511,7 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
         update()
     }
 
-    class object {
+    companion object {
         private val LOG = Logger.getLogger(javaClass<HexEditor>().getName())
     }
 }

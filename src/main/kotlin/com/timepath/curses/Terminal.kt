@@ -67,7 +67,7 @@ public open class Terminal(w: Int = 0, h: Int = 0) : JComponent() {
 
     public fun position(x: Int, y: Int): Unit = caret.setLocation(x, y)
 
-    public fun write(o: Any): Unit = o.toString().forEachIndexed { (i, c) ->
+    public fun write(o: Any): Unit = o.toString().forEachIndexed { i, c ->
         val idx = caret.x + i + (caret.y * termWidth)
         if ((idx >= 0) && (idx < charBuf.size())) {
             charBuf[idx] = c
