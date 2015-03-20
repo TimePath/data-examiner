@@ -134,12 +134,13 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
 
     public fun seek(seek: Long) {
         var tmp = Math.max(Math.min(seek, (limit - (limit % cols)).toLong()), 0)
+        val sourceRAF = sourceRAF
+        val sourceBuf = sourceBuf
         if (sourceRAF != null) {
-            val raf = sourceRAF!!
             try {
-                raf.seek(tmp)
-                val array = ByteArray(Math.min((cols * rows).toLong(), raf.length() - tmp).toInt())
-                raf.read(array)
+                sourceRAF.seek(tmp)
+                val array = ByteArray(Math.min((cols * rows).toLong(), sourceRAF.length() - tmp).toInt())
+                sourceRAF.read(array)
                 bitBuffer = BitBuffer(ByteBuffer.wrap(array))
                 bitBuffer!!.position(0, bitShift)
                 offset = tmp
@@ -147,8 +148,8 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
                 LOG.log(Level.SEVERE, null, ex)
             }
         } else if (sourceBuf != null) {
-            sourceBuf!!.position(tmp.toInt())
-            bitBuffer = BitBuffer(DataUtils.getSlice(sourceBuf, sourceBuf!!.remaining()))
+            sourceBuf.position(tmp.toInt())
+            bitBuffer = BitBuffer(DataUtils.getSlice(sourceBuf, sourceBuf.remaining()))
             bitBuffer!!.position(0, bitShift)
             offset = tmp
         }
@@ -421,6 +422,7 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
     }
 
     protected fun calcPolygon(term: Terminal, markIdx: Long, caretIdx: Long, width: Int, spacing: Int): Polygon {
+        [suppress("NAME_SHADOWING")]
         var caretIdx = caretIdx - offset
         val caretRow = caretIdx / cols.toLong()
         caretIdx = when {
@@ -430,6 +432,7 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
         }
         val caretPos = term.cellToView(caretIdx * (width + spacing).toLong())
         caretPos.translate(-term.xPos * metrics.width, -term.yPos * metrics.height)
+        [suppress("NAME_SHADOWING")]
         var markIdx = markIdx - offset
         val markRow = markIdx / cols.toLong()
         markIdx = when {
