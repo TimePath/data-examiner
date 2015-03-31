@@ -1,15 +1,8 @@
 package com.timepath.curses
 
-import javax.swing.JComponent
-import java.awt.Font
-import java.awt.Toolkit
-import java.awt.Color
-import java.awt.Dimension
-import java.awt.Point
-import java.awt.Graphics
-import java.awt.Graphics2D
+import java.awt.*
 import java.awt.geom.AffineTransform
-import java.awt.RenderingHints
+import javax.swing.JComponent
 
 public open class Terminal(w: Int = 0, h: Int = 0) : JComponent() {
 

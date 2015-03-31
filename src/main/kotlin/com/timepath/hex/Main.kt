@@ -2,17 +2,16 @@ package com.timepath.hex
 
 import com.timepath.io.BitBuffer
 import com.timepath.plaf.x.filechooser.NativeFileChooser
-
-import javax.swing.*
 import java.awt.event.InputEvent
 import java.awt.event.KeyEvent
 import java.io.FileNotFoundException
 import java.io.IOException
+import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.util.logging.Level
 import java.util.logging.Logger
+import javax.swing.*
 import kotlin.platform.platformStatic
-import java.io.RandomAccessFile
 
 /**
  * @author TimePath

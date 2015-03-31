@@ -1,10 +1,10 @@
 package com.timepath.util
 
 import java.beans.PropertyChangeSupport
+import java.beans.PropertyVetoException
 import java.beans.VetoableChangeSupport
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KMutableProperty
-import java.beans.PropertyVetoException
 
 public class BeanProperty<T>(initialValue: T,
                              val pcs: PropertyChangeSupport,

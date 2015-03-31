@@ -4,13 +4,13 @@ import com.timepath.DataUtils
 import com.timepath.curses.Multiplexer
 import com.timepath.curses.Terminal
 import com.timepath.io.BitBuffer
-
-import javax.swing.*
+import com.timepath.util.BeanProperty
+import com.timepath.util.observe
 import java.awt.*
 import java.awt.event.*
-import java.beans.*
-import java.io.File
-import java.io.FileNotFoundException
+import java.beans.PropertyChangeSupport
+import java.beans.PropertyVetoException
+import java.beans.VetoableChangeSupport
 import java.io.IOException
 import java.io.RandomAccessFile
 import java.nio.BufferUnderflowException
@@ -19,8 +19,7 @@ import java.nio.ByteOrder
 import java.util.LinkedList
 import java.util.logging.Level
 import java.util.logging.Logger
-import com.timepath.util.BeanProperty
-import com.timepath.util.observe
+import javax.swing.SwingUtilities
 
 public data class Selection(var mark: Long, var caret: Long, var color: Color?)
 
