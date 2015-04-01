@@ -491,9 +491,9 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
     public fun setData(rf: RandomAccessFile?) {
         reset()
         sourceRAF = rf
-        if (rf != null) {
+        rf?.let {
             try {
-                limit = (rf.length().toInt() - 1).toLong()
+                limit = (it.length().toInt() - 1).toLong()
             } catch (ex: IOException) {
                 LOG.log(Level.SEVERE, null, ex)
             }
@@ -505,8 +505,8 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
     public fun setData(buf: ByteBuffer?) {
         reset()
         sourceBuf = buf
-        if (buf != null) {
-            bitBuffer = BitBuffer(buf)
+        buf?.let {
+            bitBuffer = BitBuffer(it)
             limit = (bitBuffer!!.capacity() - 1).toLong()
         }
         seek(0)
