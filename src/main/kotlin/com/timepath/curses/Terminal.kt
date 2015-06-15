@@ -36,8 +36,8 @@ public open class Terminal(w: Int = 0, h: Int = 0) : JComponent() {
         g.transform(newAt)
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_GASP)
         g.setFont(termFont)
-        for (y in termHeight.indices) {
-            for (x in termWidth.indices) {
+        for (y in 0..termHeight - 1) {
+            for (x in 0..termWidth - 1) {
                 val px = x * metrics.width
                 val py = y * metrics.height
                 g.setColor(bgBuf[x + (y * termWidth)])

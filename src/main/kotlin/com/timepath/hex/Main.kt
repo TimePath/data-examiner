@@ -17,7 +17,7 @@ import kotlin.platform.platformStatic
  * @author TimePath
  */
 SuppressWarnings("serial")
-public class Main private() : JFrame() {
+public class Main private constructor() : JFrame() {
     private val jTabbedPane1: JTabbedPane
 
     init {
@@ -35,7 +35,7 @@ public class Main private() : JFrame() {
             })
             add(with(JMenuItem("Test")) {
                 addActionListener {
-                    val bytes = byteArray(33, 123, 187.toByte(), 115, 0, 0)
+                    val bytes = byteArrayOf(33, 123, 187.toByte(), 115, 0, 0)
                     val n = 3
                     val buf = ByteBuffer.allocate(bytes.size())
                     buf.put(bytes)

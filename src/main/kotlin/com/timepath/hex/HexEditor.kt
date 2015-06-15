@@ -122,7 +122,7 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
         termHeader.bgBuf.fill(Color.WHITE)
         termHeader.fgBuf.fill(Color.BLACK)
         val sb = StringBuilder(cols * 3)
-        cols.indices.forEach {
+        (0..cols - 1).forEach {
             sb.append(" %02X".format(it and 0xFF))
         }
         termHeader.position(0, 0)
@@ -241,7 +241,7 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
         repaint()
     }
 
-    protected fun updateRows(): Unit = rows.indices.forEach {
+    protected fun updateRows(): Unit = (0..rows - 1).forEach {
         termLines.position(0, it)
         termLines.write("%08X".format((it * cols).toLong() + offset))
     }
@@ -249,8 +249,7 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
     protected fun updateData() {
         termData.clear()
         termText.clear()
-        val bb = bitBuffer
-        if (bb == null) return
+        val bb = bitBuffer ?: return
         bb.position(0, bitShift)
         val bytes = ByteArray(cols)
         val sb = StringBuilder(bytes.size() * 3)
@@ -260,14 +259,14 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
             bb.get(bytes, 0, read)
 
             sb.setLength(0)
-            read.indices.forEach {
+            (0..read - 1).forEach {
                 sb.append(((bytes[it].toInt() and 0xFF)).let { " %02X".format(it) })
             }
             termData.position(0, row)
             termData.write(sb.substring(1))
 
             sb.setLength(0)
-            read.indices.forEach {
+            (0..read - 1).forEach {
                 sb.append((bytes[it].toInt() and 0xFF).let { displayChar(it.toChar()) })
             }
             termText.position(0, row)
@@ -296,7 +295,7 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
         buf.get(temp)
         buf.position(pos, bitShift)
         val calcBuf = ByteBuffer.wrap(temp)
-        val idx = intArray(0, 6, 18)
+        val idx = intArrayOf(0, 6, 18)
         val yOff = 0
         termCalc.position(idx[0], yOff)
         termCalc.write("   8")
@@ -391,7 +390,7 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
     override fun paint(g: Graphics) {
         super<Multiplexer>.paint(g)
         (g as Graphics2D).let { g ->
-            for (i in (tags.size() + 1).indices) {
+            for (i in 0..tags.size()) {
                 val sel = if ((i == tags.size())) Selection(markLocation, caretLocation, Color.RED) else tags[i]
                 g.setColor(sel.color)
                 if (sel.mark >= 0) {
@@ -421,7 +420,7 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
     }
 
     protected fun calcPolygon(term: Terminal, markIdx: Long, caretIdx: Long, width: Int, spacing: Int): Polygon {
-        [suppress("NAME_SHADOWING")]
+        @suppress("NAME_SHADOWING")
         var caretIdx = caretIdx - offset
         val caretRow = caretIdx / cols.toLong()
         caretIdx = when {
@@ -431,7 +430,7 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
         }
         val caretPos = term.cellToView(caretIdx * (width + spacing).toLong())
         caretPos.translate(-term.xPos * metrics.width, -term.yPos * metrics.height)
-        [suppress("NAME_SHADOWING")]
+        @suppress("NAME_SHADOWING")
         var markIdx = markIdx - offset
         val markRow = markIdx / cols.toLong()
         markIdx = when {
