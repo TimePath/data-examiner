@@ -53,6 +53,10 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
         it
     }
     protected val termCalc: Terminal = Terminal(54, 6).let {
+        it.yPos = 1 + rows + 3
+        it
+    }
+    protected val termBits: Terminal = Terminal(35, 1).let {
         it.yPos = 1 + rows + 1
         it
     }
@@ -85,15 +89,15 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
     init {
         initColumns()
         setBackground(Color.BLACK)
-        add(termData, termText, termLines, termHeader, termShift, termCalc)
+        add(termData, termText, termLines, termHeader, termShift, termCalc, termBits)
         addKeyListener(this)
         addMouseMotionListener(this)
         addMouseListener(this)
         addMouseWheelListener(this)
         ::caretLocation.let {
             it.observe(vetoableChangeSupport) { old: Long, new: Long ->
-                when {
-                    new !in 0..limit - 1 -> "Caret would be out of bounds"
+                when (new) {
+                    !in 0..limit - 1 -> "Caret would be out of bounds"
                     else -> null
                 }
             }
@@ -281,65 +285,82 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
     }
 
     protected fun updateStats() {
-        val pos = (caretLocation - offset).toInt()
+        termBits.clear()
         termCalc.clear()
-        when {
-            bitBuffer == null,
-            pos > bitBuffer!!.limit(),
-            pos < 0
-            -> return
+
+        val temp = run {
+            val buf = bitBuffer
+            val pos = (caretLocation - offset).toInt()
+            when {
+                buf == null,
+                pos > buf.limit(),
+                pos < 0
+                -> return
+            }
+            buf!!
+            buf.position(pos, bitShift)
+            val temp = ByteArray(Math.min(buf.remaining(), 4))
+            buf.get(temp)
+            buf.position(pos, bitShift)
+            temp
         }
-        val buf = bitBuffer!!
-        buf.position(pos, bitShift)
-        val temp = ByteArray(Math.min(buf.remaining(), 4))
-        buf.get(temp)
-        buf.position(pos, bitShift)
+
+        // binary
+        val label = "   bits: "
+        termBits.position(0, 0)
+        termBits.write(label)
+        temp.forEachIndexed { i, it ->
+            termBits.position(label.length() + (i * 9), 0)
+            val byte = it.toLong() and 0xFF
+            termBits.write(binaryDump(byte).reverse())
+        }
+
         val calcBuf = ByteBuffer.wrap(temp)
         val idx = intArrayOf(0, 6, 18)
-        val yOff = 0
-        termCalc.position(idx[0], yOff)
+
+        termCalc.position(idx[1], 0)
+        termCalc.write("LE")
+        termCalc.position(idx[2], 0)
+        termCalc.write("BE")
+
+        termCalc.position(idx[0], 1)
         termCalc.write("   8")
-        termCalc.position(idx[0], yOff + 1)
+        termCalc.position(idx[0], 2)
         termCalc.write("±  8")
-        termCalc.position(idx[0], yOff + 2)
+        termCalc.position(idx[0], 3)
         termCalc.write("  16")
-        termCalc.position(idx[0], yOff + 3)
+        termCalc.position(idx[0], 4)
         termCalc.write("± 16")
-        termCalc.position(idx[0], yOff + 4)
+        termCalc.position(idx[0], 5)
         termCalc.write("  32")
-        termCalc.position(idx[0], yOff + 5)
+        termCalc.position(idx[0], 6)
         termCalc.write("± 32")
         // byte
         run {
             calcBuf.position(0)
             var value = calcBuf.get().toLong()
-            termCalc.position(idx[1], yOff)
+            termCalc.position(idx[1], 1)
             termCalc.write(value and 0xFF)
-            termCalc.position(idx[1] + (if ((value < 0)) -1 else 0), yOff + 1)
+            termCalc.position(idx[1] + (if ((value < 0)) -1 else 0), 2)
             termCalc.write(value)
-        }
-        // binary
-        for (i in temp.indices) {
-            termCalc.position(idx[2] + (i * 9), yOff)
-            termCalc.write(StringBuilder(binaryDump((temp[i].toInt() and 0xFF).toLong())))
         }
         // short
         run {
             calcBuf.position(0)
             calcBuf.order(ByteOrder.LITTLE_ENDIAN)
             val value = calcBuf.getShort().toLong()
-            termCalc.position(idx[1], yOff + 2)
+            termCalc.position(idx[1], 3)
             termCalc.write(value and 0xFFFF)
-            termCalc.position(idx[1] + (if ((value < 0)) -1 else 0), yOff + 3)
+            termCalc.position(idx[1] + (if ((value < 0)) -1 else 0), 4)
             termCalc.write(value)
         }
         run {
             calcBuf.position(0)
             calcBuf.order(ByteOrder.BIG_ENDIAN)
             val value = calcBuf.getShort().toLong()
-            termCalc.position(idx[2], yOff + 2)
+            termCalc.position(idx[2], 3)
             termCalc.write(value and 0xFFFF)
-            termCalc.position(idx[2] + (if ((value < 0)) -1 else 0), yOff + 3)
+            termCalc.position(idx[2] + (if ((value < 0)) -1 else 0), 4)
             termCalc.write(value)
         }
         // int
@@ -347,18 +368,18 @@ public class HexEditor : Multiplexer(), KeyListener, MouseMotionListener, MouseL
             calcBuf.position(0)
             calcBuf.order(ByteOrder.LITTLE_ENDIAN)
             val value = calcBuf.getInt().toLong()
-            termCalc.position(idx[1], yOff + 4)
+            termCalc.position(idx[1], 5)
             termCalc.write(value and 0xFFFFFFFF)
-            termCalc.position(idx[1] + (if ((value < 0)) -1 else 0), yOff + 5)
+            termCalc.position(idx[1] + (if ((value < 0)) -1 else 0), 5)
             termCalc.write(value)
         }
         run {
             calcBuf.position(0)
             calcBuf.order(ByteOrder.BIG_ENDIAN)
             val value = calcBuf.getInt().toLong()
-            termCalc.position(idx[2], yOff + 4)
+            termCalc.position(idx[2], 5)
             termCalc.write(value and 0xFFFFFFFF)
-            termCalc.position(idx[2] + (if ((value < 0)) -1 else 0), yOff + 5)
+            termCalc.position(idx[2] + (if ((value < 0)) -1 else 0), 6)
             termCalc.write(value)
         }
     }
